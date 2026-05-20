@@ -1,3 +1,6 @@
+import fs from "fs";
+import path from "path";
+
 const FASHN_BASE = "https://api.fashn.ai/v1";
 const POLL_INTERVAL_MS = 3000;
 const MAX_POLLS = 40; // 2 minutes max
@@ -22,17 +25,26 @@ export async function POST(request: Request) {
     return Response.json({ error: "FASHN_API_KEY not configured" }, { status: 500 });
   }
 
-  const absoluteGarmentUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}${garmentImageUrl}`;
-  console.log("[/api/generate] resolved garment URL:", absoluteGarmentUrl);
-
-  // Start generation job
-  const fashnPayload = {
-  "model_name": "product-to-model",
-  "inputs": {
-    "product_image": absoluteGarmentUrl,
+  const filePath = path.join(process.cwd(), "public", garmentImageUrl);
+  let base64Image: string;
+  try {
+    const fileBuffer = fs.readFileSync(filePath);
+    base64Image = `data:image/jpeg;base64,${fileBuffer.toString("base64")}`;
+  } catch (err) {
+    console.error("[/api/generate] failed to read file:", filePath, err);
+    return Response.json({ error: "Failed to read uploaded file" }, { status: 500 });
   }
-};
-  console.log("[/api/generate] sending to FASHN:", JSON.stringify(fashnPayload));
+
+  const fashnPayload = {
+    model_name: "product-to-model",
+    inputs: {
+      product_image: base64Image,
+      prompt: `${ethnicity} ${gender} model, ${occasion} setting, professional fashion photography`,
+      num_images: 1,
+      output_format: "png",
+    },
+  };
+  console.log("[/api/generate] sending to FASHN (image omitted):", JSON.stringify({ ...fashnPayload, inputs: { ...fashnPayload.inputs, product_image: "[base64]" } }));
 
   const runRes = await fetch(`${FASHN_BASE}/run`, {
     method: "POST",
@@ -45,14 +57,16 @@ export async function POST(request: Request) {
 
   if (!runRes.ok) {
     const text = await runRes.text();
-    console.error("[/api/generate] FASHN error response:", runRes.status, text);
+    console.error("[/api/generate] FASHN /run error:", runRes.status, text);
     return Response.json(
       { error: `Failed to start generation: ${text}` },
       { status: runRes.status }
     );
   }
 
-  const { id } = await runRes.json();
+  const runData = await runRes.json();
+  console.log("[/api/generate] FASHN /run response:", JSON.stringify(runData));
+  const { id } = runData;
 
   // Poll until complete
   for (let i = 0; i < MAX_POLLS; i++) {
@@ -63,13 +77,17 @@ export async function POST(request: Request) {
     });
 
     if (!statusRes.ok) {
+      const text = await statusRes.text();
+      console.error("[/api/generate] FASHN /status error:", statusRes.status, text);
       return Response.json(
         { error: "Failed to poll generation status" },
         { status: statusRes.status }
       );
     }
 
-    const { status, output, error } = await statusRes.json();
+    const statusData = await statusRes.json();
+    console.log(`[/api/generate] poll ${i + 1}:`, JSON.stringify(statusData));
+    const { status, output, error } = statusData;
 
     if (status === "completed") {
       return Response.json({ images: output });
