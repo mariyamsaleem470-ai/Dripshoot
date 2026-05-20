@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "FASHN_API_KEY not configured" }, { status: 500 });
   }
 
-  const absoluteGarmentUrl = new URL(garmentImageUrl, request.url).toString();
+  const absoluteGarmentUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}${garmentImageUrl}`;
   console.log("[/api/generate] resolved garment URL:", absoluteGarmentUrl);
 
   // Start generation job
