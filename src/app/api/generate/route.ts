@@ -27,15 +27,11 @@ export async function POST(request: Request) {
 
   // Start generation job
   const fashnPayload = {
-    model_name: "fashn/tryon",
-    inputs: {
-      model_image: "https://picsum.photos/800/1200",
-      garment_image: absoluteGarmentUrl,
-      category: "one-piece",
-      mode: "quality",
-      num_samples: 1,
-    },
-  };
+  "model_name": "product-to-model",
+  "inputs": {
+    "product_image": absoluteGarmentUrl,
+  }
+};
   console.log("[/api/generate] sending to FASHN:", JSON.stringify(fashnPayload));
 
   const runRes = await fetch(`${FASHN_BASE}/run`, {
