@@ -9,6 +9,20 @@ import Container from "@/components/Container";
 type NavItem = "upload" | "projects" | "settings";
 type GenderType = "female" | "male";
 
+type ProjectImage = { id: string; imageUrl: string };
+type ProjectUpload = { id: string; imageUrl: string };
+type Project = {
+  id: string;
+  name: string;
+  status: string;
+  gender: string;
+  ethnicity: string;
+  occasion: string;
+  createdAt: string;
+  uploads: ProjectUpload[];
+  images: ProjectImage[];
+};
+
 const ETHNICITIES = [
   "South Asian",
   "East Asian",
@@ -189,6 +203,19 @@ export default function DashboardPage() {
   const [reelGenerating, setReelGenerating] = useState(false);
   const [reelProgress, setReelProgress] = useState(0);
   const [reelDone, setReelDone] = useState(false);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [projectsLoading, setProjectsLoading] = useState(false);
+  const [expandedProjectId, setExpandedProjectId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (activeNav !== "projects") return;
+    setProjectsLoading(true);
+    fetch("/api/projects")
+      .then((r) => r.json())
+      .then((d) => setProjects(d.projects ?? []))
+      .catch(() => setProjects([]))
+      .finally(() => setProjectsLoading(false));
+  }, [activeNav]);
 
   useEffect(() => {
     if (!generating) return;
@@ -876,7 +903,149 @@ export default function DashboardPage() {
           )}
 
           {/* My Projects */}
-          {activeNav === "projects" && renderPlaceholder("Projects", "My Projects")}
+          {activeNav === "projects" && (
+            <Container className="py-10">
+              <div className="mb-8">
+                <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-2">
+                  Projects
+                </p>
+                <h1 className="text-2xl font-bold">My Projects</h1>
+                {!projectsLoading && (
+                  <p className="text-white/30 text-sm mt-1">
+                    {projects.length} project{projects.length !== 1 ? "s" : ""}
+                  </p>
+                )}
+              </div>
+
+              {projectsLoading ? (
+                <div className="space-y-4">
+                  {[0, 1, 2].map((i) => (
+                    <div
+                      key={i}
+                      className="bg-white/[0.03] border border-white/[0.07] rounded-2xl h-36 animate-pulse"
+                    />
+                  ))}
+                </div>
+              ) : projects.length === 0 ? (
+                <div className="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-16 text-center">
+                  <p className="text-white/40 text-sm">No projects yet</p>
+                  <p className="text-white/20 text-xs mt-1">
+                    Generate your first shoot from the Upload tab.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {projects.map((project) => {
+                    const isExpanded = expandedProjectId === project.id;
+                    const originalImage = project.uploads[0]?.imageUrl;
+                    const date = new Date(project.createdAt).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    });
+                    return (
+                      <div
+                        key={project.id}
+                        className="bg-white/[0.03] border border-white/[0.07] rounded-2xl overflow-hidden transition-all"
+                      >
+                        <div className="p-5 flex gap-5">
+                          {/* Original garment thumbnail */}
+                          <div className="w-20 h-28 flex-shrink-0 rounded-xl overflow-hidden bg-white/[0.05]">
+                            {originalImage && (
+                              <img
+                                src={originalImage}
+                                alt="Garment"
+                                className="w-full h-full object-cover"
+                              />
+                            )}
+                          </div>
+
+                          {/* Info */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-3">
+                              <h3 className="font-semibold text-white text-sm leading-tight">
+                                {project.name}
+                              </h3>
+                              <span className="text-xs text-white/30 flex-shrink-0">{date}</span>
+                            </div>
+
+                            {/* Tag pills */}
+                            <div className="flex flex-wrap gap-1.5 mt-2">
+                              {[project.gender, project.ethnicity, project.occasion].map((tag) => (
+                                <span
+                                  key={tag}
+                                  className="text-[10px] px-2 py-0.5 rounded-full bg-violet-600/15 text-violet-300 border border-violet-500/20"
+                                >
+                                  {tag}
+                                </span>
+                              ))}
+                            </div>
+
+                            {/* Generated image thumbnails */}
+                            <div className="flex gap-2 mt-3">
+                              {project.images.slice(0, 4).map((img, i) => (
+                                <div
+                                  key={img.id}
+                                  className="w-10 h-14 rounded-lg overflow-hidden bg-white/[0.05] flex-shrink-0"
+                                >
+                                  <img
+                                    src={img.imageUrl}
+                                    alt={`Generated ${i + 1}`}
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                              ))}
+                              {project.images.length > 4 && (
+                                <div className="w-10 h-14 rounded-lg bg-white/[0.05] flex items-center justify-center flex-shrink-0">
+                                  <span className="text-[10px] text-white/40">
+                                    +{project.images.length - 4}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Expanded full image grid */}
+                        {isExpanded && project.images.length > 0 && (
+                          <div className="border-t border-white/[0.07] p-5">
+                            <div className="grid grid-cols-3 gap-3">
+                              {project.images.map((img, i) => (
+                                <div
+                                  key={img.id}
+                                  className="aspect-[3/4] rounded-xl overflow-hidden bg-white/[0.05]"
+                                >
+                                  <img
+                                    src={img.imageUrl}
+                                    alt={`Generated ${i + 1}`}
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Expand / collapse toggle */}
+                        {project.images.length > 0 && (
+                          <button
+                            onClick={() =>
+                              setExpandedProjectId(isExpanded ? null : project.id)
+                            }
+                            className="w-full py-3 text-xs text-white/30 hover:text-violet-400 border-t border-white/[0.07] transition-colors"
+                          >
+                            {isExpanded
+                              ? "Collapse ↑"
+                              : `View all ${project.images.length} image${project.images.length !== 1 ? "s" : ""} ↓`}
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </Container>
+          )}
 
           {/* Settings */}
           {activeNav === "settings" && renderPlaceholder("Settings", "Settings")}

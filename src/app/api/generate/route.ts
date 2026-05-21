@@ -1,5 +1,9 @@
 import fs from "fs";
 import path from "path";
+import { auth, currentUser } from "@clerk/nextjs/server";
+import { prisma } from "@/lib/prisma";
+
+export const runtime = "nodejs";
 
 const FASHN_BASE = "https://api.fashn.ai/v1";
 const POLL_INTERVAL_MS = 3000;
@@ -90,6 +94,35 @@ export async function POST(request: Request) {
     const { status, output, error } = statusData;
 
     if (status === "completed") {
+      // Save project to DB if user is authenticated
+      try {
+        const { userId } = await auth();
+        if (userId) {
+          const clerkUser = await currentUser();
+          const email = clerkUser?.emailAddresses?.[0]?.emailAddress ?? "";
+          const user = await prisma.user.upsert({
+            where: { clerkId: userId },
+            create: { clerkId: userId, email },
+            update: { email },
+          });
+          await prisma.project.create({
+            data: {
+              userId: user.id,
+              name: `${occasion} · ${ethnicity} ${gender}`,
+              status: "completed",
+              gender,
+              ethnicity,
+              occasion,
+              uploads: { create: [{ imageUrl: garmentImageUrl }] },
+              images: { create: (output as string[]).map((imageUrl) => ({ imageUrl })) },
+            },
+          });
+          console.log("[/api/generate] project saved to DB for user:", userId);
+        }
+      } catch (dbErr) {
+        console.error("[/api/generate] failed to save project to DB:", dbErr);
+      }
+
       return Response.json({ images: output });
     }
 
