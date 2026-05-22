@@ -285,6 +285,7 @@ export default function DashboardPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
   const [expandedProjectId, setExpandedProjectId] = useState<string | null>(null);
+  const [downloadingProjectId, setDownloadingProjectId] = useState<string | null>(null);
   const [wizardStep, setWizardStep] = useState(1);
   const [category, setCategory] = useState<ProductCategory | null>(null);
   const [ageGroup, setAgeGroup] = useState<AgeGroup | null>(null);
@@ -409,6 +410,54 @@ export default function DashboardPage() {
     } finally {
       setGenerating(false);
     }
+  };
+
+  const handleDownloadAllImages = async (project: Project) => {
+    if (!project.images.length) return;
+    setDownloadingProjectId(project.id);
+    try {
+      const JSZip = (await import("jszip")).default;
+      const zip = new JSZip();
+      await Promise.all(
+        project.images.map(async (img, i) => {
+          const res = await fetch(img.imageUrl);
+          const blob = await res.blob();
+          zip.file(`dripshoots-${i + 1}.jpg`, blob);
+        })
+      );
+      const content = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(content);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${project.name.replace(/[^a-z0-9]/gi, "-")}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setDownloadingProjectId(null);
+    }
+  };
+
+  const handleEditAndRegenerate = (project: Project) => {
+    const garmentUrl = project.uploads[0]?.imageUrl;
+    if (!garmentUrl) return;
+    setUploadedUrl(garmentUrl);
+    setUploaded(garmentUrl);
+    setGender(project.gender as GenderType);
+    setEthnicity(project.ethnicity as (typeof ETHNICITIES)[number]);
+    setOccasion(project.occasion as (typeof OCCASIONS)[number]);
+    setResults(null);
+    setGenerating(false);
+    setProgressPct(0);
+    setProgressMsg(0);
+    setCategory(null);
+    setAgeGroup(null);
+    setBackground(null);
+    setSides(["front"]);
+    setNumImages(1);
+    setQuality("high");
+    setAddVideo(false);
+    setWizardStep(2);
+    setActiveNav("upload");
   };
 
   const getVideoCreditCost = (res: VideoResolution, dur: 5 | 10) => {
@@ -1633,6 +1682,30 @@ export default function DashboardPage() {
                                   </span>
                                 </div>
                               )}
+                            </div>
+
+                            {/* Action buttons */}
+                            <div className="flex gap-2 mt-4">
+                              <button
+                                onClick={() => handleDownloadAllImages(project)}
+                                disabled={downloadingProjectId === project.id}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-violet-600/15 hover:bg-violet-600/25 border border-violet-500/25 text-violet-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {downloadingProjectId === project.id ? (
+                                  <>
+                                    <span className="w-3 h-3 rounded-full border border-violet-400 border-t-transparent animate-spin" />
+                                    Zipping…
+                                  </>
+                                ) : (
+                                  <>↓ Download All</>
+                                )}
+                              </button>
+                              <button
+                                onClick={() => handleEditAndRegenerate(project)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.08] text-white/50 hover:text-white/80 transition-colors"
+                              >
+                                ✎ Edit &amp; Regenerate
+                              </button>
                             </div>
                           </div>
                         </div>
