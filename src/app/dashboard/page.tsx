@@ -1717,13 +1717,31 @@ export default function DashboardPage() {
                               {project.images.map((img, i) => (
                                 <div
                                   key={img.id}
-                                  className="aspect-[3/4] rounded-xl overflow-hidden bg-white/[0.05]"
+                                  className="relative aspect-[3/4] rounded-xl overflow-hidden bg-white/[0.05] group"
                                 >
                                   <img
                                     src={img.imageUrl}
                                     alt={`Generated ${i + 1}`}
-                                    className="w-full h-full object-cover"
+                                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                                   />
+                                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-colors duration-300 flex items-center justify-center">
+                                    <button
+                                      onClick={async () => {
+                                        const res = await fetch(img.imageUrl);
+                                        const blob = await res.blob();
+                                        const url = URL.createObjectURL(blob);
+                                        const a = document.createElement("a");
+                                        a.href = url;
+                                        a.download = `dripshoots-${i + 1}.jpg`;
+                                        a.click();
+                                        URL.revokeObjectURL(url);
+                                      }}
+                                      className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center gap-1.5 bg-white/15 hover:bg-white/25 backdrop-blur-sm border border-white/20 text-white text-xs font-medium px-3 py-2 rounded-lg"
+                                    >
+                                      <DownloadIcon />
+                                      Download
+                                    </button>
+                                  </div>
                                 </div>
                               ))}
                             </div>
