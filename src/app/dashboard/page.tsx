@@ -13,8 +13,8 @@ type AgeGroup = "adult" | "teen" | "kids-6-12" | "kids-2-5" | "toddler";
 type Side = "front" | "back" | "side-profile" | "side-view" | "top-down" | "detail-close-up" | "interior-shot";
 type Background = "Studio White" | "Outdoor Park" | "City Street" | "Modern Office" | "Minimal Grey" | "Luxury Interior" | "Beach" | "Rooftop";
 type Quality = "standard" | "high" | "ultra";
-type VideoResolution = "480p" | "720p" | "1080p";
-type VideoMood = "fashion" | "cinematic" | "upbeat" | "ambient" | "luxury";
+type ReelFormat = "9:16" | "1:1" | "16:9";
+type ReelTemplate = "ken-burns" | "zoom-out" | "pan-left" | "pan-right" | "fade-slideshow" | "cinematic";
 
 type ProjectImage = { id: string; imageUrl: string };
 type ProjectUpload = { id: string; imageUrl: string };
@@ -172,6 +172,21 @@ const PROJECT_EXPORT_TABS: { id: Exclude<ExportTab, "reels">; label: string }[] 
   { id: "facebook",  label: "Facebook"  },
 ];
 
+const REEL_FORMATS: { id: ReelFormat; label: string; subtitle: string; width: number; height: number; filename: string }[] = [
+  { id: "9:16",  label: "9:16 Vertical",  subtitle: "Reels / TikTok", width: 1080, height: 1920, filename: "dripshoots-reel-vertical.webm"  },
+  { id: "1:1",   label: "1:1 Square",     subtitle: "Feed",            width: 1080, height: 1080, filename: "dripshoots-reel-square.webm"   },
+  { id: "16:9",  label: "16:9 Landscape", subtitle: "YouTube",         width: 1920, height: 1080, filename: "dripshoots-reel-landscape.webm"},
+];
+
+const REEL_TEMPLATES: { id: ReelTemplate; name: string; desc: string; icon: string }[] = [
+  { id: "ken-burns",      name: "Ken Burns",     desc: "Slow zoom in + slight pan",        icon: "🔍" },
+  { id: "zoom-out",       name: "Zoom Out",       desc: "Starts close, pulls back",          icon: "🔭" },
+  { id: "pan-left",       name: "Pan Left",       desc: "Camera moves left to right",        icon: "⬅"  },
+  { id: "pan-right",      name: "Pan Right",      desc: "Camera moves right to left",        icon: "➡"  },
+  { id: "fade-slideshow", name: "Fade Slideshow", desc: "Multiple images with fade",         icon: "🎞"  },
+  { id: "cinematic",      name: "Cinematic",      desc: "Zoom + fade combo, letterbox bars", icon: "🎬" },
+];
+
 // ─── Icon Components ──────────────────────────────────────────────────────────
 
 function UploadIcon({ color = "currentColor" }: { color?: string }) {
@@ -286,9 +301,6 @@ export default function DashboardPage() {
   const [results, setResults] = useState<string[] | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [activeExportTab, setActiveExportTab] = useState<ExportTab>("instagram");
-  const [reelGenerating, setReelGenerating] = useState(false);
-  const [reelProgress, setReelProgress] = useState(0);
-  const [reelDone, setReelDone] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
   const [expandedProjectId, setExpandedProjectId] = useState<string | null>(null);
@@ -304,20 +316,13 @@ export default function DashboardPage() {
   const [quality, setQuality] = useState<Quality>("high");
   const [addVideo, setAddVideo] = useState(false);
   const [selectedVideoImage, setSelectedVideoImage] = useState<string | null>(null);
-  const [videoDuration, setVideoDuration] = useState<5 | 10>(5);
-  const [videoResolution, setVideoResolution] = useState<VideoResolution>("720p");
-  const [videoGenerating, setVideoGenerating] = useState(false);
-  const [videoUrl, setVideoUrl] = useState<string | null>(null);
-  const [videoError, setVideoError] = useState<string | null>(null);
-  const [musicTracks, setMusicTracks] = useState<any[]>([]);
-  const [musicLoading, setMusicLoading] = useState(false);
-  const [selectedTrack, setSelectedTrack] = useState<any | null>(null);
-  const [playingTrackId, setPlayingTrackId] = useState<string | null>(null);
-  const [audioRef] = useState(() => typeof window !== "undefined" ? new Audio() : null);
-  const [uploadedMusic, setUploadedMusic] = useState<File | null>(null);
-  const [musicMood, setMusicMood] = useState<VideoMood>("fashion");
-  const [videoProgress, setVideoProgress] = useState(0);
-  const musicFileRef = useRef<HTMLInputElement>(null);
+  const [reelFormat, setReelFormat] = useState<ReelFormat>("9:16");
+  const [reelTemplate, setReelTemplate] = useState<ReelTemplate>("ken-burns");
+  const [reelDuration, setReelDuration] = useState<5 | 10 | 15>(10);
+  const [reelBrandName, setReelBrandName] = useState("");
+  const [reelRendering, setReelRendering] = useState(false);
+  const [reelRenderProgress, setReelRenderProgress] = useState(0);
+  const [reelOutputUrl, setReelOutputUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (activeNav !== "projects") return;
@@ -347,16 +352,6 @@ export default function DashboardPage() {
       clearInterval(msgInterval);
     };
   }, [generating]);
-
-  useEffect(() => {
-    if (activeExportTab !== "reels") return;
-    setMusicLoading(true);
-    fetch(`/api/music?mood=${musicMood}`)
-      .then((r) => r.json())
-      .then((d) => setMusicTracks(d.tracks ?? []))
-      .catch(() => setMusicTracks([]))
-      .finally(() => setMusicLoading(false));
-  }, [activeExportTab, musicMood]);
 
   const uploadToServer = async (file: File) => {
     setUploading(true);
@@ -470,118 +465,6 @@ export default function DashboardPage() {
     setActiveNav("upload");
   };
 
-  const getVideoCreditCost = (res: VideoResolution, dur: 5 | 10) => {
-    const base = res === "480p" ? 1 : res === "720p" ? 3 : 6;
-    return dur === 10 ? base * 2 : base;
-  };
-
-  const handleTrackPlay = (track: any) => {
-    if (!audioRef) return;
-    if (playingTrackId === String(track.id)) {
-      audioRef.pause();
-      setPlayingTrackId(null);
-      return;
-    }
-    audioRef.pause();
-    audioRef.src = track.videos.tiny.url;
-    audioRef.play();
-    setPlayingTrackId(String(track.id));
-    setSelectedTrack(track);
-    setUploadedMusic(null);
-  };
-
-  const handleGenerateVideo = async () => {
-    if (!selectedVideoImage) return;
-    setVideoGenerating(true);
-    setVideoError(null);
-    setVideoUrl(null);
-    setVideoProgress(0);
-    const progressInterval = setInterval(() => {
-      setVideoProgress((prev) => Math.min(prev + 2, 90));
-    }, 1500);
-    try {
-      const res = await fetch("/api/video", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageUrl: selectedVideoImage, duration: videoDuration, resolution: videoResolution }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Video generation failed");
-      setVideoProgress(100);
-      setVideoUrl(data.videoUrl);
-    } catch (err: any) {
-      setVideoError(err.message);
-    } finally {
-      clearInterval(progressInterval);
-      setVideoGenerating(false);
-    }
-  };
-
-  const handleDownloadWithMusic = async () => {
-    if (!videoUrl) return;
-
-    if (!selectedTrack && !uploadedMusic) {
-      const a = document.createElement("a");
-      a.href = videoUrl;
-      a.download = "dripshoots-reel.mp4";
-      a.click();
-      return;
-    }
-
-    const videoEl = document.createElement("video");
-    videoEl.src = videoUrl;
-    videoEl.crossOrigin = "anonymous";
-    videoEl.muted = true;
-    await new Promise<void>((r) => { videoEl.onloadedmetadata = () => r(); });
-
-    const canvas = document.createElement("canvas");
-    canvas.width = videoEl.videoWidth;
-    canvas.height = videoEl.videoHeight;
-    const ctx = canvas.getContext("2d")!;
-
-    const audioCtx = new AudioContext();
-    const musicUrl = uploadedMusic
-      ? URL.createObjectURL(uploadedMusic)
-      : selectedTrack.videos.tiny.url;
-    const musicRes = await fetch(musicUrl);
-    const musicBuffer = await audioCtx.decodeAudioData(await musicRes.arrayBuffer());
-    const audioSource = audioCtx.createBufferSource();
-    audioSource.buffer = musicBuffer;
-    const dest = audioCtx.createMediaStreamDestination();
-    audioSource.connect(dest);
-
-    const canvasStream = canvas.captureStream(30);
-    const combined = new MediaStream([
-      ...canvasStream.getVideoTracks(),
-      ...dest.stream.getAudioTracks(),
-    ]);
-    const recorder = new MediaRecorder(combined, { mimeType: "video/webm;codecs=vp9,opus" });
-    const chunks: BlobPart[] = [];
-    recorder.ondataavailable = (e) => chunks.push(e.data);
-    recorder.onstop = () => {
-      const blob = new Blob(chunks, { type: "video/webm" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "dripshoots-reel.webm";
-      a.click();
-    };
-
-    const drawFrame = () => {
-      if (!videoEl.paused && !videoEl.ended) {
-        ctx.drawImage(videoEl, 0, 0);
-        requestAnimationFrame(drawFrame);
-      }
-    };
-
-    videoEl.play();
-    audioSource.start();
-    recorder.start();
-    drawFrame();
-    await new Promise<void>((r) => { videoEl.onended = () => r(); });
-    recorder.stop();
-    audioSource.stop();
-  };
 
   const handleReset = () => {
     setUploaded(null);
@@ -603,15 +486,13 @@ export default function DashboardPage() {
     setQuality("high");
     setAddVideo(false);
     setSelectedVideoImage(null);
-    setVideoDuration(5);
-    setVideoResolution("720p");
-    setVideoGenerating(false);
-    setVideoUrl(null);
-    setVideoError(null);
-    setSelectedTrack(null);
-    setPlayingTrackId(null);
-    setUploadedMusic(null);
-    setVideoProgress(0);
+    setReelFormat("9:16");
+    setReelTemplate("ken-burns");
+    setReelDuration(10);
+    setReelBrandName("");
+    setReelRendering(false);
+    setReelRenderProgress(0);
+    setReelOutputUrl(null);
     setEditingProjectName(null);
     if (fileRef.current) fileRef.current.value = "";
   };
@@ -657,81 +538,145 @@ export default function DashboardPage() {
     }, "image/jpeg", 0.92);
   };
 
-  const generateReel = async () => {
+  const renderReel = async () => {
     if (!results) return;
-    setReelGenerating(true);
-    setReelProgress(0);
-    setReelDone(false);
-    try {
-      const W = 1080, H = 1920;
-      const canvas = document.createElement("canvas");
-      canvas.width = W;
-      canvas.height = H;
-      const ctx = canvas.getContext("2d")!;
+    setReelRendering(true);
+    setReelRenderProgress(0);
+    setReelOutputUrl(null);
 
-      const imgs = await Promise.all(
-        results.map((url) => new Promise<HTMLImageElement>((res, rej) => {
+    const fmt = REEL_FORMATS.find((f) => f.id === reelFormat)!;
+    const { width: W, height: H } = fmt;
+    const DURATION_MS = reelDuration * 1000;
+    const FPS = 30;
+
+    const imageUrls = reelTemplate === "fade-slideshow"
+      ? results
+      : [selectedVideoImage ?? results[0]];
+
+    const imgs = await Promise.all(
+      imageUrls.map((url) =>
+        new Promise<HTMLImageElement>((res, rej) => {
           const im = new Image();
           im.crossOrigin = "anonymous";
           im.onload = () => res(im);
           im.onerror = rej;
           im.src = url;
-        }))
-      );
+        })
+      )
+    );
 
-      const drawCover = (im: HTMLImageElement) => {
-        const srcA = im.naturalWidth / im.naturalHeight;
-        const dstA = W / H;
-        let sx = 0, sy = 0, sw = im.naturalWidth, sh = im.naturalHeight;
-        if (srcA > dstA) { sw = im.naturalHeight * dstA; sx = (im.naturalWidth - sw) / 2; }
-        else { sh = im.naturalWidth / dstA; sy = (im.naturalHeight - sh) / 2; }
-        ctx.drawImage(im, sx, sy, sw, sh, 0, 0, W, H);
-      };
+    const canvas = document.createElement("canvas");
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext("2d")!;
 
-      let currentImg = imgs[0];
-      let rafId = 0;
-      const loop = () => { drawCover(currentImg); rafId = requestAnimationFrame(loop); };
+    const drawCovered = (img: HTMLImageElement, dx: number, dy: number, dw: number, dh: number, alpha = 1) => {
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+      const srcA = img.naturalWidth / img.naturalHeight;
+      const dstA = dw / dh;
+      let sx = 0, sy = 0, sw = img.naturalWidth, sh = img.naturalHeight;
+      if (srcA > dstA) { sw = img.naturalHeight * dstA; sx = (img.naturalWidth - sw) / 2; }
+      else              { sh = img.naturalWidth / dstA;  sy = (img.naturalHeight - sh) / 2; }
+      ctx.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
+      ctx.restore();
+    };
 
-      const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
-        ? "video/webm;codecs=vp9"
-        : "video/webm";
-      const stream = canvas.captureStream(30);
-      const chunks: Blob[] = [];
-      const recorder = new MediaRecorder(stream, { mimeType });
-      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+    const drawFrame = (t: number) => {
+      ctx.fillStyle = "#000";
+      ctx.fillRect(0, 0, W, H);
 
-      rafId = requestAnimationFrame(loop);
-      recorder.start(100);
-
-      for (let i = 0; i < imgs.length; i++) {
-        currentImg = imgs[i];
-        setReelProgress(Math.round(((i + 0.5) / imgs.length) * 100));
-        await new Promise((r) => setTimeout(r, 1200));
+      if (reelTemplate === "ken-burns") {
+        const scale = 1 + 0.15 * t;
+        const tx = -0.02 * t * W;
+        const dw = W * scale, dh = H * scale;
+        drawCovered(imgs[0], (W - dw) / 2 + tx, (H - dh) / 2, dw, dh);
+      } else if (reelTemplate === "zoom-out") {
+        const scale = 1.2 - 0.2 * t;
+        const dw = W * scale, dh = H * scale;
+        drawCovered(imgs[0], (W - dw) / 2, (H - dh) / 2, dw, dh);
+      } else if (reelTemplate === "pan-left") {
+        const scale = 1.1;
+        const tx = (0.05 - 0.1 * t) * W;
+        const dw = W * scale, dh = H * scale;
+        drawCovered(imgs[0], (W - dw) / 2 + tx, (H - dh) / 2, dw, dh);
+      } else if (reelTemplate === "pan-right") {
+        const scale = 1.1;
+        const tx = (-0.05 + 0.1 * t) * W;
+        const dw = W * scale, dh = H * scale;
+        drawCovered(imgs[0], (W - dw) / 2 + tx, (H - dh) / 2, dw, dh);
+      } else if (reelTemplate === "fade-slideshow") {
+        const total = imgs.length;
+        const slotSize = 1 / total;
+        const fadeFrac = Math.min(0.3 / (reelDuration / total), 0.5);
+        const rawIdx = t / slotSize;
+        const imgIdx = Math.min(Math.floor(rawIdx), total - 1);
+        const localT = rawIdx - Math.floor(rawIdx);
+        let curAlpha = 1;
+        if (localT > 1 - fadeFrac && imgIdx < total - 1) {
+          curAlpha = 1 - (localT - (1 - fadeFrac)) / fadeFrac;
+        }
+        drawCovered(imgs[imgIdx], 0, 0, W, H, curAlpha);
+        if (localT > 1 - fadeFrac && imgIdx + 1 < total) {
+          drawCovered(imgs[imgIdx + 1], 0, 0, W, H, 1 - curAlpha);
+        }
+      } else if (reelTemplate === "cinematic") {
+        const scale = 1 + 0.15 * t;
+        const tx = -0.02 * t * W;
+        const dw = W * scale, dh = H * scale;
+        drawCovered(imgs[0], (W - dw) / 2 + tx, (H - dh) / 2, dw, dh);
+        const barH = Math.round(H * 0.15);
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0, 0, W, barH);
+        ctx.fillRect(0, H - barH, W, barH);
       }
 
-      cancelAnimationFrame(rafId);
-      recorder.stop();
+      if (reelBrandName.trim()) {
+        const barH = Math.round(H * 0.08);
+        const fontSize = Math.round(W * 0.035);
+        ctx.fillStyle = "rgba(0,0,0,0.55)";
+        ctx.fillRect(0, H - barH, W, barH);
+        ctx.fillStyle = "#fff";
+        ctx.font = `bold ${fontSize}px -apple-system, BlinkMacSystemFont, sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(reelBrandName.trim(), W / 2, H - barH / 2);
+      }
+    };
 
-      await new Promise<void>((resolve) => {
-        recorder.onstop = () => {
-          const blob = new Blob(chunks, { type: "video/webm" });
-          const a = document.createElement("a");
-          a.href = URL.createObjectURL(blob);
-          a.download = "dripshoots-reel.webm";
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(a.href);
-          resolve();
-        };
-      });
+    const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
+      ? "video/webm;codecs=vp9"
+      : "video/webm";
+    const stream = canvas.captureStream(FPS);
+    const chunks: Blob[] = [];
+    const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 5_000_000 });
+    recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
 
-      setReelDone(true);
-    } catch (err) {
-      console.error("Reel generation failed:", err);
-    } finally {
-      setReelGenerating(false);
-    }
+    await new Promise<void>((resolve) => {
+      recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: "video/webm" });
+        setReelOutputUrl(URL.createObjectURL(blob));
+        resolve();
+      };
+
+      const startTime = performance.now();
+      recorder.start(100);
+
+      const tick = () => {
+        const elapsed = performance.now() - startTime;
+        const progress = Math.min(elapsed / DURATION_MS, 1);
+        drawFrame(progress);
+        setReelRenderProgress(Math.round(progress * 100));
+        if (progress < 1) {
+          requestAnimationFrame(tick);
+        } else {
+          recorder.stop();
+        }
+      };
+      requestAnimationFrame(tick);
+    });
+
+    setReelRendering(false);
   };
 
   const isStepValid = (() => {
@@ -1329,7 +1274,7 @@ export default function DashboardPage() {
                     {EXPORT_TABS.map((tab) => (
                       <button
                         key={tab.id}
-                        onClick={() => { setActiveExportTab(tab.id); setReelDone(false); }}
+                        onClick={() => setActiveExportTab(tab.id)}
                         className={`
                           px-4 py-2.5 text-sm font-medium whitespace-nowrap flex-shrink-0 transition-all rounded-t-lg border-b-2
                           ${activeExportTab === tab.id
@@ -1382,222 +1327,180 @@ export default function DashboardPage() {
                     </div>
                   ) : (
                     /* ── Reels tab ── */
-                    <div className="space-y-8">
+                    <div className="space-y-6">
 
-                      {/* Section 1: Image selector */}
+                      {/* 1. Format selector */}
                       <div>
-                        <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-3">Choose image to animate</p>
-                        <div className="flex gap-3 overflow-x-auto pb-2">
-                          {results.map((url, i) => (
-                            <button key={i} onClick={() => setSelectedVideoImage(url)}
-                              className={`relative flex-shrink-0 w-20 h-28 rounded-xl overflow-hidden border-2 transition-all ${
-                                selectedVideoImage === url ? "border-violet-500 scale-[1.02]" : "border-white/10 hover:border-violet-500/40"
+                        <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-3">Format</p>
+                        <div className="flex gap-2 flex-wrap">
+                          {REEL_FORMATS.map((fmt) => (
+                            <button key={fmt.id} onClick={() => setReelFormat(fmt.id)}
+                              className={`px-4 py-2 rounded-full border text-sm transition-all ${
+                                reelFormat === fmt.id
+                                  ? "bg-violet-600/20 border-violet-500 text-violet-300"
+                                  : "bg-white/[0.03] border-white/[0.07] text-white/50 hover:border-white/20"
                               }`}>
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src={url} alt={`Image ${i + 1}`} className="w-full h-full object-cover" />
-                              {selectedVideoImage === url && (
-                                <div className="absolute inset-0 bg-violet-500/20 flex items-center justify-center">
-                                  <div className="w-5 h-5 rounded-full bg-violet-500 flex items-center justify-center">
-                                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                                      <path d="M2 5l2.5 2.5L8 3" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                    </svg>
-                                  </div>
+                              <span className="font-medium">{fmt.label}</span>
+                              <span className="ml-1.5 text-[10px] opacity-60">{fmt.subtitle}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* 2. Template selector */}
+                      <div>
+                        <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-3">Motion Template</p>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                          {REEL_TEMPLATES.map((tpl) => (
+                            <button key={tpl.id} onClick={() => setReelTemplate(tpl.id)}
+                              className={`flex flex-col gap-2 p-4 rounded-xl border text-left transition-all ${
+                                reelTemplate === tpl.id
+                                  ? "border-violet-500 bg-violet-500/10"
+                                  : "border-white/[0.07] bg-white/[0.03] hover:border-violet-500/40 hover:bg-white/[0.05]"
+                              }`}>
+                              <span className="text-2xl leading-none">{tpl.icon}</span>
+                              <p className={`text-xs font-semibold ${reelTemplate === tpl.id ? "text-violet-300" : "text-white/80"}`}>
+                                {tpl.name}
+                              </p>
+                              <p className="text-[10px] text-white/40 leading-relaxed">{tpl.desc}</p>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* 3. Image selector */}
+                      <div>
+                        <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-3">
+                          {reelTemplate === "fade-slideshow" ? "Images" : "Choose image"}
+                        </p>
+                        {reelTemplate === "fade-slideshow" ? (
+                          <div className="flex items-center gap-3 p-4 rounded-xl border border-violet-500/30 bg-violet-500/5">
+                            <div className="flex gap-1.5">
+                              {results.slice(0, 4).map((url, i) => (
+                                <div key={i} className="w-9 h-12 rounded-lg overflow-hidden border border-violet-500/30 flex-shrink-0">
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img src={url} alt="" className="w-full h-full object-cover" />
+                                </div>
+                              ))}
+                              {results.length > 4 && (
+                                <div className="w-9 h-12 rounded-lg bg-white/[0.05] border border-white/10 flex items-center justify-center flex-shrink-0">
+                                  <span className="text-[9px] text-white/40">+{results.length - 4}</span>
                                 </div>
                               )}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Section 2: Video settings */}
-                      <div className="space-y-4">
-                        <p className="text-xs text-violet-400 uppercase tracking-widest font-medium">Video settings</p>
-                        <div className="flex gap-2 flex-wrap">
-                          {([5, 10] as const).map((d) => (
-                            <button key={d} onClick={() => setVideoDuration(d)}
-                              className={`px-4 py-2 rounded-full border text-sm transition-all ${
-                                videoDuration === d
-                                  ? "bg-violet-600/20 border-violet-500 text-violet-300"
-                                  : "bg-white/[0.03] border-white/[0.07] text-white/50 hover:border-white/20"
-                              }`}>
-                              {d} sec{d === 10 && <span className="ml-1 text-[10px] text-white/40">(×2 credits)</span>}
-                            </button>
-                          ))}
-                        </div>
-                        <div className="flex gap-2 flex-wrap">
-                          {(["480p", "720p", "1080p"] as VideoResolution[]).map((r) => {
-                            const base = r === "480p" ? 1 : r === "720p" ? 3 : 6;
-                            const cost = videoDuration === 10 ? base * 2 : base;
-                            return (
-                              <button key={r} onClick={() => setVideoResolution(r)}
-                                className={`px-4 py-2 rounded-full border text-sm transition-all ${
-                                  videoResolution === r
-                                    ? "bg-violet-600/20 border-violet-500 text-violet-300"
-                                    : "bg-white/[0.03] border-white/[0.07] text-white/50 hover:border-white/20"
-                                }`}>
-                                {r} · {cost}cr
-                              </button>
-                            );
-                          })}
-                        </div>
-                        <div className="inline-flex items-center gap-1.5 bg-violet-600/10 border border-violet-500/20 px-3 py-1.5 rounded-full">
-                          <span className="text-xs text-violet-300">
-                            This video will use <strong>{getVideoCreditCost(videoResolution, videoDuration)} credits</strong>
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Section 3: Music */}
-                      <div className="space-y-4">
-                        <p className="text-xs text-violet-400 uppercase tracking-widest font-medium">Add music</p>
-                        <div className="flex gap-2 flex-wrap">
-                          {(["fashion", "cinematic", "upbeat", "ambient", "luxury"] as VideoMood[]).map((m) => (
-                            <button key={m} onClick={() => setMusicMood(m)}
-                              className={`px-3 py-1.5 rounded-full border text-xs capitalize transition-all ${
-                                musicMood === m
-                                  ? "bg-violet-600/20 border-violet-500 text-violet-300"
-                                  : "bg-white/[0.03] border-white/[0.07] text-white/50 hover:border-white/20"
-                              }`}>
-                              {m}
-                            </button>
-                          ))}
-                        </div>
-                        {musicLoading ? (
-                          <div className="grid grid-cols-2 gap-3">
-                            {[0, 1, 2, 3].map((i) => (
-                              <div key={i} className="h-16 rounded-xl bg-white/[0.03] border border-white/[0.07] animate-pulse" />
-                            ))}
+                            </div>
+                            <p className="text-xs text-violet-300 font-medium">All {results.length} images will be used</p>
                           </div>
                         ) : (
-                          <div className="grid grid-cols-2 gap-3">
-                            {musicTracks.map((track) => {
-                              const isPlaying = playingTrackId === String(track.id);
-                              const isSelected = selectedTrack?.id === track.id && !uploadedMusic;
-                              return (
-                                <div key={track.id}
-                                  className={`flex items-center gap-2 p-3 rounded-xl border transition-all ${
-                                    isSelected
-                                      ? "border-violet-500 bg-violet-500/10"
-                                      : "border-white/[0.07] bg-white/[0.03] hover:border-white/20"
-                                  }`}>
-                                  <button onClick={() => handleTrackPlay(track)}
-                                    className="w-8 h-8 flex-shrink-0 rounded-full bg-white/[0.07] hover:bg-violet-600/30 flex items-center justify-center transition-colors">
-                                    {isPlaying ? (
-                                      <span className="flex gap-[2px] items-end h-3">
-                                        {[0, 1, 2].map((b) => (
-                                          <span key={b} className="w-[3px] bg-violet-400 rounded-sm animate-bounce"
-                                            style={{ height: `${[8, 12, 6][b]}px`, animationDelay: `${b * 100}ms` }} />
-                                        ))}
-                                      </span>
-                                    ) : (
-                                      <svg width="10" height="10" viewBox="0 0 10 10" fill="white">
-                                        <polygon points="2,1 9,5 2,9" />
+                          <div className="flex gap-3 overflow-x-auto pb-2">
+                            {results.map((url, i) => (
+                              <button key={i} onClick={() => setSelectedVideoImage(url)}
+                                className={`relative flex-shrink-0 w-20 h-28 rounded-xl overflow-hidden border-2 transition-all ${
+                                  selectedVideoImage === url ? "border-violet-500 scale-[1.02]" : "border-white/10 hover:border-violet-500/40"
+                                }`}>
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={url} alt={`Image ${i + 1}`} className="w-full h-full object-cover" />
+                                {selectedVideoImage === url && (
+                                  <div className="absolute inset-0 bg-violet-500/20 flex items-center justify-center">
+                                    <div className="w-5 h-5 rounded-full bg-violet-500 flex items-center justify-center">
+                                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                                        <path d="M2 5l2.5 2.5L8 3" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                                       </svg>
-                                    )}
-                                  </button>
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-xs text-white/70 truncate font-medium">
-                                      {track.tags.split(",").slice(0, 3).join(", ")}
-                                    </p>
-                                    <p className="text-[10px] text-white/30">{track.duration}s</p>
+                                    </div>
                                   </div>
-                                  <button
-                                    onClick={() => { setSelectedTrack(track); setUploadedMusic(null); }}
-                                    className={`text-[10px] px-2 py-1 rounded-lg border flex-shrink-0 transition-colors ${
-                                      isSelected
-                                        ? "border-violet-500 bg-violet-500/20 text-violet-300"
-                                        : "border-white/[0.07] text-white/40 hover:border-violet-500/40"
-                                    }`}>
-                                    {isSelected ? "✓" : "Use"}
-                                  </button>
-                                </div>
-                              );
-                            })}
-                            <div className={`flex items-center gap-2 p-3 rounded-xl border transition-all cursor-pointer ${
-                              uploadedMusic
-                                ? "border-violet-500 bg-violet-500/10"
-                                : "border-white/[0.07] bg-white/[0.03] hover:border-white/20 border-dashed"
-                            }`}
-                              onClick={() => musicFileRef.current?.click()}>
-                              <input ref={musicFileRef} type="file" accept=".mp3,.mp4,.m4a,.wav" className="hidden"
-                                onChange={(e) => {
-                                  const file = e.target.files?.[0];
-                                  if (file) { setUploadedMusic(file); setSelectedTrack(null); setPlayingTrackId(null); }
-                                }} />
-                              <div className="w-8 h-8 flex-shrink-0 rounded-full bg-white/[0.07] flex items-center justify-center">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
-                                  <polyline points="17 8 12 3 7 8"/>
-                                  <line x1="12" y1="3" x2="12" y2="15"/>
-                                </svg>
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs text-white/60 truncate">
-                                  {uploadedMusic ? uploadedMusic.name : "Upload your own"}
-                                </p>
-                                <p className="text-[10px] text-white/30">MP3, M4A, WAV</p>
-                              </div>
-                            </div>
+                                )}
+                              </button>
+                            ))}
                           </div>
                         )}
                       </div>
 
-                      {/* Section 4: Generate button */}
-                      {!videoUrl && (
+                      {/* 4. Duration selector */}
+                      <div>
+                        <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-3">Duration</p>
+                        <div className="flex gap-2">
+                          {([5, 10, 15] as const).map((d) => (
+                            <button key={d} onClick={() => setReelDuration(d)}
+                              className={`px-4 py-2 rounded-full border text-sm transition-all ${
+                                reelDuration === d
+                                  ? "bg-violet-600/20 border-violet-500 text-violet-300"
+                                  : "bg-white/[0.03] border-white/[0.07] text-white/50 hover:border-white/20"
+                              }`}>
+                              {d} sec
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* 5. Brand name input */}
+                      <div>
+                        <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-3">
+                          Brand Overlay <span className="normal-case text-white/20">(optional)</span>
+                        </p>
+                        <input
+                          type="text"
+                          value={reelBrandName}
+                          onChange={(e) => setReelBrandName(e.target.value)}
+                          placeholder="e.g. DripShoots"
+                          maxLength={40}
+                          className="w-full bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3 text-sm text-white placeholder-white/20 focus:outline-none focus:border-violet-500/50 transition-colors"
+                        />
+                        {reelBrandName.trim() && (
+                          <p className="text-[10px] text-white/30 mt-1.5">Brand name will appear at the bottom of the video</p>
+                        )}
+                      </div>
+
+                      {/* 6 & 7. Render button + progress */}
+                      {!reelOutputUrl && (
                         <div>
                           <button
-                            disabled={!selectedVideoImage || videoGenerating}
-                            onClick={handleGenerateVideo}
+                            disabled={reelRendering || (reelTemplate !== "fade-slideshow" && !selectedVideoImage)}
+                            onClick={renderReel}
                             className={`w-full py-3.5 rounded-xl text-sm font-medium transition-colors ${
-                              selectedVideoImage && !videoGenerating
+                              !reelRendering && (reelTemplate === "fade-slideshow" || selectedVideoImage)
                                 ? "bg-violet-600 hover:bg-violet-500 text-white"
                                 : "bg-white/[0.04] text-white/20 cursor-not-allowed"
-                            }`}>
-                            {videoGenerating
-                              ? "Generating..."
-                              : `Generate Video (${getVideoCreditCost(videoResolution, videoDuration)} credits)`}
+                            }`}
+                          >
+                            {reelRendering ? "Rendering…" : "Render Reel"}
                           </button>
-                          {videoGenerating && (
+                          {reelRendering && (
                             <div className="mt-4 space-y-2">
                               <div className="bg-white/[0.06] rounded-full h-[3px] overflow-hidden">
                                 <div
-                                  className="bg-gradient-to-r from-violet-600 to-fuchsia-500 h-full rounded-full transition-all duration-700"
-                                  style={{ width: `${videoProgress}%` }}
+                                  className="bg-gradient-to-r from-violet-600 to-fuchsia-500 h-full rounded-full transition-all duration-300"
+                                  style={{ width: `${reelRenderProgress}%` }}
                                 />
                               </div>
                               <div className="flex justify-between text-xs text-white/40">
-                                <span>Creating your cinematic reel...</span>
-                                <span>
-                                  {videoResolution === "480p" ? "~30 seconds" : videoResolution === "720p" ? "~60 seconds" : "~2 minutes"}
-                                </span>
+                                <span>Rendering frames…</span>
+                                <span>{reelRenderProgress}%</span>
                               </div>
                             </div>
-                          )}
-                          {videoError && (
-                            <p className="mt-3 text-xs text-red-400/80">{videoError}</p>
                           )}
                         </div>
                       )}
 
-                      {/* Section 5: Result */}
-                      {videoUrl && (
+                      {/* 8. Video preview + Download */}
+                      {reelOutputUrl && (
                         <div className="space-y-4">
                           {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-                          <video src={videoUrl} controls autoPlay loop className="w-full rounded-2xl bg-black" />
+                          <video src={reelOutputUrl} controls autoPlay loop className="w-full rounded-2xl bg-black" />
                           <div className="flex gap-3">
-                            <button onClick={handleDownloadWithMusic}
-                              className="flex-1 py-3 rounded-xl text-sm font-medium bg-violet-600 hover:bg-violet-500 text-white transition-colors">
-                              ↓ Download with Music
-                            </button>
-                            <button onClick={() => { const a = document.createElement("a"); a.href = videoUrl; a.download = "dripshoots-reel.mp4"; a.click(); }}
-                              className="flex-1 py-3 rounded-xl text-sm font-medium border border-white/[0.07] text-white/60 hover:text-white hover:border-white/20 transition-colors">
-                              ↓ Video Only
+                            <a
+                              href={reelOutputUrl}
+                              download={REEL_FORMATS.find((f) => f.id === reelFormat)!.filename}
+                              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium bg-violet-600 hover:bg-violet-500 text-white transition-colors"
+                            >
+                              <DownloadIcon />
+                              Download
+                            </a>
+                            <button
+                              onClick={() => { setReelOutputUrl(null); setReelRenderProgress(0); }}
+                              className="flex-1 py-3 rounded-xl text-sm font-medium border border-white/[0.07] text-white/60 hover:text-white hover:border-white/20 transition-colors"
+                            >
+                              ← Render Again
                             </button>
                           </div>
-                          <button onClick={() => { setVideoUrl(null); setVideoProgress(0); }}
-                            className="w-full text-xs text-white/30 hover:text-violet-400 transition-colors">
-                            ← Generate another
-                          </button>
                         </div>
                       )}
 
