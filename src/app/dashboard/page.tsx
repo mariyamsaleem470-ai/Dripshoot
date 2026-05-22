@@ -286,6 +286,7 @@ export default function DashboardPage() {
   const [projectsLoading, setProjectsLoading] = useState(false);
   const [expandedProjectId, setExpandedProjectId] = useState<string | null>(null);
   const [downloadingProjectId, setDownloadingProjectId] = useState<string | null>(null);
+  const [editingProjectName, setEditingProjectName] = useState<string | null>(null);
   const [wizardStep, setWizardStep] = useState(1);
   const [category, setCategory] = useState<ProductCategory | null>(null);
   const [ageGroup, setAgeGroup] = useState<AgeGroup | null>(null);
@@ -456,6 +457,7 @@ export default function DashboardPage() {
     setNumImages(1);
     setQuality("high");
     setAddVideo(false);
+    setEditingProjectName(project.name);
     setWizardStep(2);
     setActiveNav("upload");
   };
@@ -602,6 +604,7 @@ export default function DashboardPage() {
     setPlayingTrackId(null);
     setUploadedMusic(null);
     setVideoProgress(0);
+    setEditingProjectName(null);
     if (fileRef.current) fileRef.current.value = "";
   };
 
@@ -799,6 +802,31 @@ export default function DashboardPage() {
           {/* ── Wizard ── */}
           {activeNav === "upload" && !generating && !results && (
             <Container className="py-10">
+              {/* Editing banner */}
+              {editingProjectName && (
+                <div className="flex items-center justify-between gap-3 mb-6 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-300">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+                      <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+                      <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                    <span className="text-xs font-medium truncate">
+                      Editing: <span className="text-amber-200">{editingProjectName}</span>
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setEditingProjectName(null)}
+                    className="flex-shrink-0 text-amber-400/60 hover:text-amber-300 transition-colors"
+                    aria-label="Dismiss"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="18" y1="6" x2="6" y2="18"/>
+                      <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                  </button>
+                </div>
+              )}
+
               {/* Step progress bar */}
               <div className="mb-8">
                 <div className="flex gap-1 mb-4">
