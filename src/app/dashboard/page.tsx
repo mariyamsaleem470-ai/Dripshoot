@@ -13,6 +13,8 @@ type AgeGroup = "adult" | "teen" | "kids-6-12" | "kids-2-5" | "toddler";
 type Side = "front" | "back" | "side-profile" | "side-view" | "top-down" | "detail-close-up" | "interior-shot";
 type Background = "Studio White" | "Outdoor Park" | "City Street" | "Modern Office" | "Minimal Grey" | "Luxury Interior" | "Beach" | "Rooftop";
 type Quality = "standard" | "high" | "ultra";
+type VideoResolution = "480p" | "720p" | "1080p";
+type VideoMood = "fashion" | "cinematic" | "upbeat" | "ambient" | "luxury";
 
 type ProjectImage = { id: string; imageUrl: string };
 type ProjectUpload = { id: string; imageUrl: string };
@@ -291,6 +293,21 @@ export default function DashboardPage() {
   const [numImages, setNumImages] = useState(1);
   const [quality, setQuality] = useState<Quality>("high");
   const [addVideo, setAddVideo] = useState(false);
+  const [selectedVideoImage, setSelectedVideoImage] = useState<string | null>(null);
+  const [videoDuration, setVideoDuration] = useState<5 | 10>(5);
+  const [videoResolution, setVideoResolution] = useState<VideoResolution>("720p");
+  const [videoGenerating, setVideoGenerating] = useState(false);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [videoError, setVideoError] = useState<string | null>(null);
+  const [musicTracks, setMusicTracks] = useState<any[]>([]);
+  const [musicLoading, setMusicLoading] = useState(false);
+  const [selectedTrack, setSelectedTrack] = useState<any | null>(null);
+  const [playingTrackId, setPlayingTrackId] = useState<string | null>(null);
+  const [audioRef] = useState(() => typeof window !== "undefined" ? new Audio() : null);
+  const [uploadedMusic, setUploadedMusic] = useState<File | null>(null);
+  const [musicMood, setMusicMood] = useState<VideoMood>("fashion");
+  const [videoProgress, setVideoProgress] = useState(0);
+  const musicFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (activeNav !== "projects") return;
@@ -320,6 +337,16 @@ export default function DashboardPage() {
       clearInterval(msgInterval);
     };
   }, [generating]);
+
+  useEffect(() => {
+    if (activeExportTab !== "reels") return;
+    setMusicLoading(true);
+    fetch(`/api/music?mood=${musicMood}`)
+      .then((r) => r.json())
+      .then((d) => setMusicTracks(d.tracks ?? []))
+      .catch(() => setMusicTracks([]))
+      .finally(() => setMusicLoading(false));
+  }, [activeExportTab, musicMood]);
 
   const uploadToServer = async (file: File) => {
     setUploading(true);
@@ -384,6 +411,119 @@ export default function DashboardPage() {
     }
   };
 
+  const getVideoCreditCost = (res: VideoResolution, dur: 5 | 10) => {
+    const base = res === "480p" ? 1 : res === "720p" ? 3 : 6;
+    return dur === 10 ? base * 2 : base;
+  };
+
+  const handleTrackPlay = (track: any) => {
+    if (!audioRef) return;
+    if (playingTrackId === String(track.id)) {
+      audioRef.pause();
+      setPlayingTrackId(null);
+      return;
+    }
+    audioRef.pause();
+    audioRef.src = track.videos.tiny.url;
+    audioRef.play();
+    setPlayingTrackId(String(track.id));
+    setSelectedTrack(track);
+    setUploadedMusic(null);
+  };
+
+  const handleGenerateVideo = async () => {
+    if (!selectedVideoImage) return;
+    setVideoGenerating(true);
+    setVideoError(null);
+    setVideoUrl(null);
+    setVideoProgress(0);
+    const progressInterval = setInterval(() => {
+      setVideoProgress((prev) => Math.min(prev + 2, 90));
+    }, 1500);
+    try {
+      const res = await fetch("/api/video", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrl: selectedVideoImage, duration: videoDuration, resolution: videoResolution }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Video generation failed");
+      setVideoProgress(100);
+      setVideoUrl(data.videoUrl);
+    } catch (err: any) {
+      setVideoError(err.message);
+    } finally {
+      clearInterval(progressInterval);
+      setVideoGenerating(false);
+    }
+  };
+
+  const handleDownloadWithMusic = async () => {
+    if (!videoUrl) return;
+
+    if (!selectedTrack && !uploadedMusic) {
+      const a = document.createElement("a");
+      a.href = videoUrl;
+      a.download = "dripshoots-reel.mp4";
+      a.click();
+      return;
+    }
+
+    const videoEl = document.createElement("video");
+    videoEl.src = videoUrl;
+    videoEl.crossOrigin = "anonymous";
+    videoEl.muted = true;
+    await new Promise<void>((r) => { videoEl.onloadedmetadata = () => r(); });
+
+    const canvas = document.createElement("canvas");
+    canvas.width = videoEl.videoWidth;
+    canvas.height = videoEl.videoHeight;
+    const ctx = canvas.getContext("2d")!;
+
+    const audioCtx = new AudioContext();
+    const musicUrl = uploadedMusic
+      ? URL.createObjectURL(uploadedMusic)
+      : selectedTrack.videos.tiny.url;
+    const musicRes = await fetch(musicUrl);
+    const musicBuffer = await audioCtx.decodeAudioData(await musicRes.arrayBuffer());
+    const audioSource = audioCtx.createBufferSource();
+    audioSource.buffer = musicBuffer;
+    const dest = audioCtx.createMediaStreamDestination();
+    audioSource.connect(dest);
+
+    const canvasStream = canvas.captureStream(30);
+    const combined = new MediaStream([
+      ...canvasStream.getVideoTracks(),
+      ...dest.stream.getAudioTracks(),
+    ]);
+    const recorder = new MediaRecorder(combined, { mimeType: "video/webm;codecs=vp9,opus" });
+    const chunks: BlobPart[] = [];
+    recorder.ondataavailable = (e) => chunks.push(e.data);
+    recorder.onstop = () => {
+      const blob = new Blob(chunks, { type: "video/webm" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "dripshoots-reel.webm";
+      a.click();
+    };
+
+    const drawFrame = () => {
+      if (!videoEl.paused && !videoEl.ended) {
+        ctx.drawImage(videoEl, 0, 0);
+        requestAnimationFrame(drawFrame);
+      }
+    };
+
+    videoEl.play();
+    audioSource.start();
+    recorder.start();
+    drawFrame();
+    await new Promise<void>((r) => { videoEl.onended = () => r(); });
+    recorder.stop();
+    audioSource.stop();
+  };
+
   const handleReset = () => {
     setUploaded(null);
     setUploadedUrl(null);
@@ -403,6 +543,16 @@ export default function DashboardPage() {
     setNumImages(1);
     setQuality("high");
     setAddVideo(false);
+    setSelectedVideoImage(null);
+    setVideoDuration(5);
+    setVideoResolution("720p");
+    setVideoGenerating(false);
+    setVideoUrl(null);
+    setVideoError(null);
+    setSelectedTrack(null);
+    setPlayingTrackId(null);
+    setUploadedMusic(null);
+    setVideoProgress(0);
     if (fileRef.current) fileRef.current.value = "";
   };
 
@@ -1147,62 +1297,225 @@ export default function DashboardPage() {
                     </div>
                   ) : (
                     /* ── Reels tab ── */
-                    <div className="flex flex-col sm:flex-row gap-6 items-center sm:items-start">
-                      {/* Phone mockup */}
-                      <div className="flex-shrink-0">
-                        <div
-                          className="relative w-28 rounded-[20px] border-[3px] border-white/20 bg-black overflow-hidden shadow-2xl shadow-black/50"
-                          style={{ aspectRatio: "9/16" }}
-                        >
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={results[0]} alt="Reel preview" className="w-full h-full object-cover" />
-                          <div className="absolute top-2 left-1/2 -translate-x-1/2 w-8 h-1 bg-black/70 rounded-full" />
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <div className="w-9 h-9 rounded-full bg-black/40 backdrop-blur-sm border border-white/10 flex items-center justify-center">
-                              <svg width="12" height="12" viewBox="0 0 12 12" fill="white">
-                                <polygon points="2,1 11,6 2,11" />
-                              </svg>
-                            </div>
-                          </div>
+                    <div className="space-y-8">
+
+                      {/* Section 1: Image selector */}
+                      <div>
+                        <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-3">Choose image to animate</p>
+                        <div className="flex gap-3 overflow-x-auto pb-2">
+                          {results.map((url, i) => (
+                            <button key={i} onClick={() => setSelectedVideoImage(url)}
+                              className={`relative flex-shrink-0 w-20 h-28 rounded-xl overflow-hidden border-2 transition-all ${
+                                selectedVideoImage === url ? "border-violet-500 scale-[1.02]" : "border-white/10 hover:border-violet-500/40"
+                              }`}>
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={url} alt={`Image ${i + 1}`} className="w-full h-full object-cover" />
+                              {selectedVideoImage === url && (
+                                <div className="absolute inset-0 bg-violet-500/20 flex items-center justify-center">
+                                  <div className="w-5 h-5 rounded-full bg-violet-500 flex items-center justify-center">
+                                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                                      <path d="M2 5l2.5 2.5L8 3" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                    </svg>
+                                  </div>
+                                </div>
+                              )}
+                            </button>
+                          ))}
                         </div>
-                        <p className="text-center text-[9px] text-white/25 mt-2 tracking-wide">9:16 · 1080×1920</p>
                       </div>
 
-                      {/* Controls */}
-                      <div className="flex-1 text-center sm:text-left">
-                        <h3 className="text-sm font-semibold mb-1">Generate Reel</h3>
-                        <p className="text-xs text-white/40 mb-5 leading-relaxed">
-                          Animates your 6 images into a vertical slideshow at 30 fps.
-                          Downloads as <span className="text-white/60 font-medium">WebM video</span>.
-                        </p>
+                      {/* Section 2: Video settings */}
+                      <div className="space-y-4">
+                        <p className="text-xs text-violet-400 uppercase tracking-widest font-medium">Video settings</p>
+                        <div className="flex gap-2 flex-wrap">
+                          {([5, 10] as const).map((d) => (
+                            <button key={d} onClick={() => setVideoDuration(d)}
+                              className={`px-4 py-2 rounded-full border text-sm transition-all ${
+                                videoDuration === d
+                                  ? "bg-violet-600/20 border-violet-500 text-violet-300"
+                                  : "bg-white/[0.03] border-white/[0.07] text-white/50 hover:border-white/20"
+                              }`}>
+                              {d} sec{d === 10 && <span className="ml-1 text-[10px] text-white/40">(×2 credits)</span>}
+                            </button>
+                          ))}
+                        </div>
+                        <div className="flex gap-2 flex-wrap">
+                          {(["480p", "720p", "1080p"] as VideoResolution[]).map((r) => {
+                            const base = r === "480p" ? 1 : r === "720p" ? 3 : 6;
+                            const cost = videoDuration === 10 ? base * 2 : base;
+                            return (
+                              <button key={r} onClick={() => setVideoResolution(r)}
+                                className={`px-4 py-2 rounded-full border text-sm transition-all ${
+                                  videoResolution === r
+                                    ? "bg-violet-600/20 border-violet-500 text-violet-300"
+                                    : "bg-white/[0.03] border-white/[0.07] text-white/50 hover:border-white/20"
+                                }`}>
+                                {r} · {cost}cr
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <div className="inline-flex items-center gap-1.5 bg-violet-600/10 border border-violet-500/20 px-3 py-1.5 rounded-full">
+                          <span className="text-xs text-violet-300">
+                            This video will use <strong>{getVideoCreditCost(videoResolution, videoDuration)} credits</strong>
+                          </span>
+                        </div>
+                      </div>
 
-                        {reelGenerating ? (
-                          <div className="space-y-2">
-                            <div className="bg-white/[0.06] rounded-full h-[3px] overflow-hidden">
-                              <div
-                                className="bg-gradient-to-r from-violet-600 to-fuchsia-500 h-full rounded-full transition-all duration-500"
-                                style={{ width: `${reelProgress}%` }}
-                              />
-                            </div>
-                            <p className="text-xs text-white/40">
-                              Processing frame {Math.max(1, Math.ceil(reelProgress / 100 * results.length))} of {results.length}…
-                            </p>
+                      {/* Section 3: Music */}
+                      <div className="space-y-4">
+                        <p className="text-xs text-violet-400 uppercase tracking-widest font-medium">Add music</p>
+                        <div className="flex gap-2 flex-wrap">
+                          {(["fashion", "cinematic", "upbeat", "ambient", "luxury"] as VideoMood[]).map((m) => (
+                            <button key={m} onClick={() => setMusicMood(m)}
+                              className={`px-3 py-1.5 rounded-full border text-xs capitalize transition-all ${
+                                musicMood === m
+                                  ? "bg-violet-600/20 border-violet-500 text-violet-300"
+                                  : "bg-white/[0.03] border-white/[0.07] text-white/50 hover:border-white/20"
+                              }`}>
+                              {m}
+                            </button>
+                          ))}
+                        </div>
+                        {musicLoading ? (
+                          <div className="grid grid-cols-2 gap-3">
+                            {[0, 1, 2, 3].map((i) => (
+                              <div key={i} className="h-16 rounded-xl bg-white/[0.03] border border-white/[0.07] animate-pulse" />
+                            ))}
                           </div>
                         ) : (
-                          <button
-                            onClick={generateReel}
-                            className="bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium px-5 py-2.5 rounded-lg transition-colors inline-flex items-center gap-2"
-                          >
-                            {reelDone ? "↓ Download Again" : "▶ Generate Reel"}
-                          </button>
+                          <div className="grid grid-cols-2 gap-3">
+                            {musicTracks.map((track) => {
+                              const isPlaying = playingTrackId === String(track.id);
+                              const isSelected = selectedTrack?.id === track.id && !uploadedMusic;
+                              return (
+                                <div key={track.id}
+                                  className={`flex items-center gap-2 p-3 rounded-xl border transition-all ${
+                                    isSelected
+                                      ? "border-violet-500 bg-violet-500/10"
+                                      : "border-white/[0.07] bg-white/[0.03] hover:border-white/20"
+                                  }`}>
+                                  <button onClick={() => handleTrackPlay(track)}
+                                    className="w-8 h-8 flex-shrink-0 rounded-full bg-white/[0.07] hover:bg-violet-600/30 flex items-center justify-center transition-colors">
+                                    {isPlaying ? (
+                                      <span className="flex gap-[2px] items-end h-3">
+                                        {[0, 1, 2].map((b) => (
+                                          <span key={b} className="w-[3px] bg-violet-400 rounded-sm animate-bounce"
+                                            style={{ height: `${[8, 12, 6][b]}px`, animationDelay: `${b * 100}ms` }} />
+                                        ))}
+                                      </span>
+                                    ) : (
+                                      <svg width="10" height="10" viewBox="0 0 10 10" fill="white">
+                                        <polygon points="2,1 9,5 2,9" />
+                                      </svg>
+                                    )}
+                                  </button>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-xs text-white/70 truncate font-medium">
+                                      {track.tags.split(",").slice(0, 3).join(", ")}
+                                    </p>
+                                    <p className="text-[10px] text-white/30">{track.duration}s</p>
+                                  </div>
+                                  <button
+                                    onClick={() => { setSelectedTrack(track); setUploadedMusic(null); }}
+                                    className={`text-[10px] px-2 py-1 rounded-lg border flex-shrink-0 transition-colors ${
+                                      isSelected
+                                        ? "border-violet-500 bg-violet-500/20 text-violet-300"
+                                        : "border-white/[0.07] text-white/40 hover:border-violet-500/40"
+                                    }`}>
+                                    {isSelected ? "✓" : "Use"}
+                                  </button>
+                                </div>
+                              );
+                            })}
+                            <div className={`flex items-center gap-2 p-3 rounded-xl border transition-all cursor-pointer ${
+                              uploadedMusic
+                                ? "border-violet-500 bg-violet-500/10"
+                                : "border-white/[0.07] bg-white/[0.03] hover:border-white/20 border-dashed"
+                            }`}
+                              onClick={() => musicFileRef.current?.click()}>
+                              <input ref={musicFileRef} type="file" accept=".mp3,.mp4,.m4a,.wav" className="hidden"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) { setUploadedMusic(file); setSelectedTrack(null); setPlayingTrackId(null); }
+                                }} />
+                              <div className="w-8 h-8 flex-shrink-0 rounded-full bg-white/[0.07] flex items-center justify-center">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                                  <polyline points="17 8 12 3 7 8"/>
+                                  <line x1="12" y1="3" x2="12" y2="15"/>
+                                </svg>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs text-white/60 truncate">
+                                  {uploadedMusic ? uploadedMusic.name : "Upload your own"}
+                                </p>
+                                <p className="text-[10px] text-white/30">MP3, M4A, WAV</p>
+                              </div>
+                            </div>
+                          </div>
                         )}
-
-                        {reelDone && !reelGenerating && (
-                          <p className="text-xs text-emerald-400/60 mt-3">✓ Reel downloaded</p>
-                        )}
-
-                        <p className="text-[10px] text-white/20 mt-5">WebM (VP9) · 30 fps · ~7 sec</p>
                       </div>
+
+                      {/* Section 4: Generate button */}
+                      {!videoUrl && (
+                        <div>
+                          <button
+                            disabled={!selectedVideoImage || videoGenerating}
+                            onClick={handleGenerateVideo}
+                            className={`w-full py-3.5 rounded-xl text-sm font-medium transition-colors ${
+                              selectedVideoImage && !videoGenerating
+                                ? "bg-violet-600 hover:bg-violet-500 text-white"
+                                : "bg-white/[0.04] text-white/20 cursor-not-allowed"
+                            }`}>
+                            {videoGenerating
+                              ? "Generating..."
+                              : `Generate Video (${getVideoCreditCost(videoResolution, videoDuration)} credits)`}
+                          </button>
+                          {videoGenerating && (
+                            <div className="mt-4 space-y-2">
+                              <div className="bg-white/[0.06] rounded-full h-[3px] overflow-hidden">
+                                <div
+                                  className="bg-gradient-to-r from-violet-600 to-fuchsia-500 h-full rounded-full transition-all duration-700"
+                                  style={{ width: `${videoProgress}%` }}
+                                />
+                              </div>
+                              <div className="flex justify-between text-xs text-white/40">
+                                <span>Creating your cinematic reel...</span>
+                                <span>
+                                  {videoResolution === "480p" ? "~30 seconds" : videoResolution === "720p" ? "~60 seconds" : "~2 minutes"}
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                          {videoError && (
+                            <p className="mt-3 text-xs text-red-400/80">{videoError}</p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Section 5: Result */}
+                      {videoUrl && (
+                        <div className="space-y-4">
+                          {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+                          <video src={videoUrl} controls autoPlay loop className="w-full rounded-2xl bg-black" />
+                          <div className="flex gap-3">
+                            <button onClick={handleDownloadWithMusic}
+                              className="flex-1 py-3 rounded-xl text-sm font-medium bg-violet-600 hover:bg-violet-500 text-white transition-colors">
+                              ↓ Download with Music
+                            </button>
+                            <button onClick={() => { const a = document.createElement("a"); a.href = videoUrl; a.download = "dripshoots-reel.mp4"; a.click(); }}
+                              className="flex-1 py-3 rounded-xl text-sm font-medium border border-white/[0.07] text-white/60 hover:text-white hover:border-white/20 transition-colors">
+                              ↓ Video Only
+                            </button>
+                          </div>
+                          <button onClick={() => { setVideoUrl(null); setVideoProgress(0); }}
+                            className="w-full text-xs text-white/30 hover:text-violet-400 transition-colors">
+                            ← Generate another
+                          </button>
+                        </div>
+                      )}
+
                     </div>
                   )}
                 </div>
