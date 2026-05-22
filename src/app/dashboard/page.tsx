@@ -165,6 +165,13 @@ const EXPORT_TABS: { id: ExportTab; label: string }[] = [
   { id: "reels",     label: "Reels"     },
 ];
 
+const PROJECT_EXPORT_TABS: { id: Exclude<ExportTab, "reels">; label: string }[] = [
+  { id: "instagram", label: "Instagram" },
+  { id: "shopify",   label: "Shopify"   },
+  { id: "wordpress", label: "WordPress" },
+  { id: "facebook",  label: "Facebook"  },
+];
+
 // ─── Icon Components ──────────────────────────────────────────────────────────
 
 function UploadIcon({ color = "currentColor" }: { color?: string }) {
@@ -287,6 +294,7 @@ export default function DashboardPage() {
   const [expandedProjectId, setExpandedProjectId] = useState<string | null>(null);
   const [downloadingProjectId, setDownloadingProjectId] = useState<string | null>(null);
   const [editingProjectName, setEditingProjectName] = useState<string | null>(null);
+  const [projectExportTab, setProjectExportTab] = useState<Exclude<ExportTab, "reels">>("instagram");
   const [wizardStep, setWizardStep] = useState(1);
   const [category, setCategory] = useState<ProductCategory | null>(null);
   const [ageGroup, setAgeGroup] = useState<AgeGroup | null>(null);
@@ -1772,6 +1780,68 @@ export default function DashboardPage() {
                                   </div>
                                 </div>
                               ))}
+                            </div>
+
+                            {/* Export toolbar */}
+                            <div className="mt-5 bg-white/[0.03] border border-white/[0.07] rounded-2xl overflow-hidden">
+                              <div className="px-5 pt-5">
+                                <p className="text-xs text-white/30 uppercase tracking-widest font-medium mb-4">Export</p>
+                                <div className="flex gap-0.5 overflow-x-auto pb-px">
+                                  {PROJECT_EXPORT_TABS.map((tab) => (
+                                    <button
+                                      key={tab.id}
+                                      onClick={() => setProjectExportTab(tab.id)}
+                                      className={`
+                                        px-4 py-2.5 text-sm font-medium whitespace-nowrap flex-shrink-0 transition-all rounded-t-lg border-b-2
+                                        ${projectExportTab === tab.id
+                                          ? "text-violet-400 border-violet-500 bg-violet-500/10"
+                                          : "text-white/40 border-transparent hover:text-white/70 hover:bg-white/[0.03]"
+                                        }
+                                      `}
+                                    >
+                                      {tab.label}
+                                    </button>
+                                  ))}
+                                </div>
+                                <div className="h-px bg-white/[0.07] -mx-5" />
+                              </div>
+                              <div className="p-5">
+                                <div className="grid grid-cols-2 gap-4">
+                                  {PLATFORM_FORMATS[projectExportTab].map((fmt, i) => (
+                                    <div key={i} className="bg-white/[0.03] border border-white/[0.05] rounded-xl overflow-hidden">
+                                      <div className="relative h-36 overflow-hidden bg-black/20">
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                        <img
+                                          src={project.images[i]?.imageUrl ?? project.images[0].imageUrl}
+                                          alt={fmt.label}
+                                          className="w-full h-full object-cover"
+                                        />
+                                        <div className="absolute bottom-2 right-2 bg-black/60 backdrop-blur-sm text-white/50 text-[9px] px-1.5 py-0.5 rounded font-mono tracking-wide">
+                                          {fmt.ratioLabel}
+                                        </div>
+                                      </div>
+                                      <div className="p-3 flex items-center justify-between gap-2">
+                                        <div className="min-w-0">
+                                          <p className="text-xs text-white/70 font-medium truncate">{fmt.label}</p>
+                                          <p className="text-[10px] text-white/30 mt-0.5">{fmt.description}</p>
+                                        </div>
+                                        <button
+                                          onClick={() => downloadCropped(
+                                            project.images[i]?.imageUrl ?? project.images[0].imageUrl,
+                                            fmt.width,
+                                            fmt.height,
+                                            fmt.filename
+                                          )}
+                                          className="flex-shrink-0 flex items-center gap-1.5 bg-violet-600/20 hover:bg-violet-600/30 border border-violet-500/30 text-violet-300 text-xs font-medium px-2.5 py-1.5 rounded-lg transition-colors"
+                                        >
+                                          <DownloadIcon />
+                                          Download
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
                             </div>
                           </div>
                         )}
