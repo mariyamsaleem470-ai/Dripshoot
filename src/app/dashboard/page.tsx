@@ -8,6 +8,11 @@ import Container from "@/components/Container";
 
 type NavItem = "upload" | "projects" | "settings";
 type GenderType = "female" | "male";
+type ProductCategory = "clothing" | "shoes" | "jewelry" | "bags" | "hats";
+type AgeGroup = "adult" | "teen" | "kids-6-12" | "kids-2-5" | "toddler";
+type Side = "front" | "back" | "side-profile" | "side-view" | "top-down" | "detail-close-up" | "interior-shot";
+type Background = "Studio White" | "Outdoor Park" | "City Street" | "Modern Office" | "Minimal Grey" | "Luxury Interior" | "Beach" | "Rooftop";
+type Quality = "standard" | "high" | "ultra";
 
 type ProjectImage = { id: string; imageUrl: string };
 type ProjectUpload = { id: string; imageUrl: string };
@@ -34,13 +39,85 @@ const ETHNICITIES = [
   "Mixed",
 ] as const;
 
-const OCCASIONS = ["Party", "Office", "Casual", "Outdoor", "Studio"] as const;
+const OCCASIONS = [
+  "Party", "Office", "Casual", "Outdoor", "Studio",
+  "Editorial", "Sport", "Festival", "Wedding", "Street Style",
+] as const;
 
 const PROGRESS_MESSAGES = [
   "Enhancing image...",
   "Placing on model...",
   "Generating scenes...",
 ];
+
+const CATEGORIES: { id: ProductCategory; label: string; emoji: string }[] = [
+  { id: "clothing", label: "Clothing & Apparel",   emoji: "👕" },
+  { id: "shoes",    label: "Shoes & Footwear",     emoji: "👟" },
+  { id: "jewelry",  label: "Jewelry & Accessories",emoji: "💍" },
+  { id: "bags",     label: "Bags & Handbags",      emoji: "👜" },
+  { id: "hats",     label: "Hats & Headwear",      emoji: "🧢" },
+];
+
+const AGE_GROUPS: { id: AgeGroup; label: string; range: string; desc: string }[] = [
+  { id: "adult",     label: "Adult",   range: "18+",   desc: "Full range of styles and occasions" },
+  { id: "teen",      label: "Teen",    range: "13–17", desc: "Youth fashion, street & casual" },
+  { id: "kids-6-12", label: "Kids",    range: "6–12",  desc: "School, casual, party looks" },
+  { id: "kids-2-5",  label: "Kids",    range: "2–5",   desc: "Cute, playful, comfortable styles" },
+  { id: "toddler",   label: "Toddler", range: "1–2",   desc: "Soft, simple, adorable outfits" },
+];
+
+const BACKGROUNDS: { id: Background; swatch: string }[] = [
+  { id: "Studio White",    swatch: "bg-white" },
+  { id: "Minimal Grey",    swatch: "bg-gray-400" },
+  { id: "Outdoor Park",    swatch: "bg-green-500" },
+  { id: "City Street",     swatch: "bg-slate-500" },
+  { id: "Modern Office",   swatch: "bg-blue-400" },
+  { id: "Luxury Interior", swatch: "bg-yellow-500" },
+  { id: "Beach",           swatch: "bg-cyan-400" },
+  { id: "Rooftop",         swatch: "bg-purple-900" },
+];
+
+const SIDES_BY_CATEGORY: Record<ProductCategory, { id: Side; label: string }[]> = {
+  clothing: [
+    { id: "front",         label: "Front" },
+    { id: "back",          label: "Back" },
+    { id: "side-profile",  label: "Side Profile" },
+  ],
+  shoes: [
+    { id: "front",     label: "Front" },
+    { id: "side-view", label: "Side View" },
+    { id: "top-down",  label: "Top Down" },
+  ],
+  jewelry: [
+    { id: "front",           label: "Front" },
+    { id: "detail-close-up", label: "Detail Close-up" },
+  ],
+  bags: [
+    { id: "front",         label: "Front" },
+    { id: "side-view",     label: "Side View" },
+    { id: "interior-shot", label: "Interior Shot" },
+  ],
+  hats: [
+    { id: "front",     label: "Front" },
+    { id: "side-view", label: "Side View" },
+  ],
+};
+
+const QUALITY_CREDITS: Record<Quality, number> = { standard: 1, high: 3, ultra: 5 };
+
+const STEP_TITLES: Record<number, string> = {
+  1:  "Upload your garment",
+  2:  "Product category",
+  3:  "Age group",
+  4:  "Gender & Ethnicity",
+  5:  "Background",
+  6:  "Occasion",
+  7:  "Sides",
+  8:  "Images per side",
+  9:  "Quality",
+  10: "Add video reel?",
+  11: "Review & Generate",
+};
 
 const NAV_ITEMS: { id: NavItem; label: string; icon: React.ReactNode }[] = [
   { id: "upload", label: "Upload", icon: <UploadIcon /> },
@@ -206,6 +283,14 @@ export default function DashboardPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
   const [expandedProjectId, setExpandedProjectId] = useState<string | null>(null);
+  const [wizardStep, setWizardStep] = useState(1);
+  const [category, setCategory] = useState<ProductCategory | null>(null);
+  const [ageGroup, setAgeGroup] = useState<AgeGroup | null>(null);
+  const [background, setBackground] = useState<Background | null>(null);
+  const [sides, setSides] = useState<Side[]>(["front"]);
+  const [numImages, setNumImages] = useState(1);
+  const [quality, setQuality] = useState<Quality>("high");
+  const [addVideo, setAddVideo] = useState(false);
 
   useEffect(() => {
     if (activeNav !== "projects") return;
@@ -288,7 +373,7 @@ export default function DashboardPage() {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ garmentImageUrl: uploadedUrl, gender, ethnicity, occasion }),
+        body: JSON.stringify({ garmentImageUrl: uploadedUrl, gender, ethnicity, occasion, ageGroup, category, background, sides, numImages, quality }),
       });
       const data = await res.json();
       setProgressPct(100);
@@ -310,6 +395,14 @@ export default function DashboardPage() {
     setGenerating(false);
     setProgressPct(0);
     setProgressMsg(0);
+    setWizardStep(1);
+    setCategory(null);
+    setAgeGroup(null);
+    setBackground(null);
+    setSides(["front"]);
+    setNumImages(1);
+    setQuality("high");
+    setAddVideo(false);
     if (fileRef.current) fileRef.current.value = "";
   };
 
@@ -431,6 +524,18 @@ export default function DashboardPage() {
     }
   };
 
+  const isStepValid = (() => {
+    switch (wizardStep) {
+      case 1: return !!uploadedUrl && !uploading;
+      case 2: return !!category;
+      case 3: return !!ageGroup;
+      case 4: return !!gender && !!ethnicity;
+      case 5: return !!background;
+      case 6: return !!occasion;
+      default: return true;
+    }
+  })();
+
   return (
     <div className="min-h-screen bg-[#080808] text-white">
 
@@ -492,166 +597,168 @@ export default function DashboardPage() {
       <main className="pt-[57px] md:ml-64 min-h-screen flex flex-col relative z-10">
         <div className="flex-1 overflow-y-auto">
 
-          {/* ── Upload / Configure ── */}
+          {/* ── Wizard ── */}
           {activeNav === "upload" && !generating && !results && (
             <Container className="py-10">
+              {/* Step progress bar */}
               <div className="mb-8">
-                <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-2">
-                  New Project
+                <div className="flex gap-1 mb-4">
+                  {Array.from({ length: 11 }, (_, i) => (
+                    <div
+                      key={i}
+                      className={`h-0.5 flex-1 rounded-full transition-all duration-300 ${
+                        i + 1 <= wizardStep ? "bg-violet-500" : "bg-white/[0.08]"
+                      }`}
+                    />
+                  ))}
+                </div>
+                <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-1">
+                  Step {wizardStep} of 11
                 </p>
-                <h1 className="text-2xl font-bold">Upload your cloth photo</h1>
-                <p className="text-white/40 text-sm mt-1">
-                  Start by dropping a flat lay or product image below.
-                </p>
+                <h1 className="text-2xl font-bold">{STEP_TITLES[wizardStep]}</h1>
               </div>
 
-              {/* Drop Zone */}
-              <div
-                className={`
-                  w-full rounded-2xl border-2 border-dashed transition-all cursor-pointer
-                  ${
-                    dragging
-                      ? "border-violet-500 bg-violet-500/5 scale-[1.01]"
-                      : "border-white/10 hover:border-violet-500/40 bg-white/[0.02]"
-                  }
-                `}
-                onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-                onDragLeave={() => setDragging(false)}
-                onDrop={handleDrop}
-                onClick={handleZoneClick}
-              >
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleFile}
-                />
-
-                {uploaded ? (
-                  <div className="p-5 flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-xl overflow-hidden bg-black/40 flex-shrink-0">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={uploaded} alt="Uploaded cloth" className="w-full h-full object-cover" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-white/70 font-medium">
-                        {uploading ? "Uploading…" : "Image selected"}
-                      </p>
-                      <p className="text-xs text-white/30 mt-0.5">Click to replace</p>
-                    </div>
+              {/* ── Step 1: Upload ── */}
+              {wizardStep === 1 && (
+                <div>
+                  <div
+                    className={`w-full rounded-2xl border-2 border-dashed transition-all cursor-pointer ${
+                      dragging
+                        ? "border-violet-500 bg-violet-500/5 scale-[1.01]"
+                        : "border-white/10 hover:border-violet-500/40 bg-white/[0.02]"
+                    }`}
+                    onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+                    onDragLeave={() => setDragging(false)}
+                    onDrop={handleDrop}
+                    onClick={handleZoneClick}
+                  >
+                    <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
+                    {uploaded ? (
+                      <div className="p-5 flex items-center gap-4">
+                        <div className="w-14 h-14 rounded-xl overflow-hidden bg-black/40 flex-shrink-0">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={uploaded} alt="Uploaded cloth" className="w-full h-full object-cover" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-white/70 font-medium">{uploading ? "Uploading…" : "Image selected"}</p>
+                          <p className="text-xs text-white/30 mt-0.5">Click to replace</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="p-16 flex flex-col items-center">
+                        <div className="w-14 h-14 rounded-2xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center mb-5">
+                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                            <polyline points="17 8 12 3 7 8" />
+                            <line x1="12" y1="3" x2="12" y2="15" />
+                          </svg>
+                        </div>
+                        <p className="text-white/60 text-sm mb-1 font-medium">Drop your cloth photo here</p>
+                        <p className="text-white/25 text-xs mb-6">JPG, PNG, WEBP — up to 20MB</p>
+                        <button
+                          className="bg-violet-600/90 hover:bg-violet-600 px-6 py-2.5 rounded-lg text-sm font-medium transition-colors"
+                          onClick={(e) => { e.stopPropagation(); handleZoneClick(); }}
+                        >
+                          Browse file
+                        </button>
+                      </div>
+                    )}
                   </div>
-                ) : (
-                  <div className="p-16 flex flex-col items-center">
-                    <div className="w-14 h-14 rounded-2xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center mb-5">
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-                        <polyline points="17 8 12 3 7 8" />
-                        <line x1="12" y1="3" x2="12" y2="15" />
-                      </svg>
+                  {uploaded && (
+                    <div className="mt-4 flex items-center justify-between bg-white/[0.03] border border-white/[0.07] rounded-xl p-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg overflow-hidden bg-black/40 flex-shrink-0">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={uploaded} alt="" className="w-full h-full object-cover" />
+                        </div>
+                        <p className="text-sm text-white/70">{uploading ? "Uploading…" : "Image ready"}</p>
+                      </div>
+                      <button onClick={handleRemove} className="text-xs text-white/40 hover:text-white/70 border border-white/10 px-3 py-1.5 rounded-lg transition-colors">
+                        Remove
+                      </button>
                     </div>
-                    <p className="text-white/60 text-sm mb-1 font-medium">Drop your cloth photo here</p>
-                    <p className="text-white/25 text-xs mb-6">JPG, PNG, WEBP — up to 20MB</p>
-                    <button
-                      className="bg-violet-600/90 hover:bg-violet-600 px-6 py-2.5 rounded-lg text-sm font-medium transition-colors"
-                      onClick={(e) => { e.stopPropagation(); handleZoneClick(); }}
-                    >
-                      Browse file
+                  )}
+                </div>
+              )}
+
+              {/* ── Step 2: Category ── */}
+              {wizardStep === 2 && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {CATEGORIES.map((cat) => (
+                    <button key={cat.id} onClick={() => setCategory(cat.id)}
+                      className={`flex flex-col items-center gap-3 p-5 rounded-2xl border transition-all ${
+                        category === cat.id
+                          ? "border-violet-500 bg-violet-500/10 text-violet-300"
+                          : "border-white/[0.07] bg-white/[0.03] text-white/60 hover:border-violet-500/40 hover:bg-white/[0.05]"
+                      }`}>
+                      <span className="text-3xl">{cat.emoji}</span>
+                      <span className="text-sm font-medium text-center leading-tight">{cat.label}</span>
                     </button>
-                  </div>
-                )}
-              </div>
+                  ))}
+                </div>
+              )}
 
-              {/* Options Panel */}
-              {uploaded && (
-                <div className="mt-6 space-y-6">
-                  <div className="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-4 flex items-center gap-4">
-                    <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-black/40 flex-shrink-0">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={uploaded} alt="Uploaded cloth" className="w-full h-full object-cover" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-white/80 font-medium">
-                        {uploading ? "Uploading…" : "Image ready"}
-                      </p>
-                      <p className="text-xs text-white/30 mt-0.5">
-                        {uploading ? "Please wait…" : "Configure model options below"}
-                      </p>
-                    </div>
-                    <button
-                      onClick={handleRemove}
-                      className="text-xs text-white/40 hover:text-white/70 border border-white/10 hover:border-white/25 px-3 py-1.5 rounded-lg transition-colors flex-shrink-0"
-                    >
-                      Remove
+              {/* ── Step 3: Age Group ── */}
+              {wizardStep === 3 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {AGE_GROUPS.map((ag) => (
+                    <button key={ag.id} onClick={() => setAgeGroup(ag.id)}
+                      className={`flex items-start gap-4 p-4 rounded-2xl border text-left transition-all ${
+                        ageGroup === ag.id
+                          ? "border-violet-500 bg-violet-500/10"
+                          : "border-white/[0.07] bg-white/[0.03] hover:border-violet-500/40 hover:bg-white/[0.05]"
+                      }`}>
+                      <div className={`flex-shrink-0 px-2 py-0.5 rounded-full text-[10px] font-medium mt-0.5 ${
+                        ageGroup === ag.id ? "bg-violet-500/30 text-violet-300" : "bg-white/[0.07] text-white/40"
+                      }`}>
+                        {ag.range}
+                      </div>
+                      <div>
+                        <p className={`text-sm font-semibold ${ageGroup === ag.id ? "text-violet-300" : "text-white/80"}`}>
+                          {ag.label}
+                        </p>
+                        <p className="text-xs text-white/40 mt-0.5">{ag.desc}</p>
+                      </div>
                     </button>
-                  </div>
+                  ))}
+                </div>
+              )}
 
-                  {/* Gender */}
+              {/* ── Step 4: Gender + Ethnicity ── */}
+              {wizardStep === 4 && (
+                <div className="space-y-6">
                   <div>
                     <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-3">Gender</p>
-                    <div className="flex gap-3">
-                      {(["female", "male"] as GenderType[]).map((g) => (
-                        <button
-                          key={g}
-                          onClick={() => setGender(g)}
-                          className={`
-                            px-5 py-2 rounded-lg text-sm font-medium transition-colors capitalize
-                            ${gender === g ? "bg-violet-600 text-white" : "bg-white/5 text-white/50 hover:text-white"}
-                          `}
-                        >
-                          {g === "female" ? "Female" : "Male"}
-                        </button>
-                      ))}
+                    <div className="grid grid-cols-2 gap-3">
+                      {(["female", "male"] as GenderType[]).map((g) => {
+                        const isKids = ageGroup === "kids-6-12" || ageGroup === "kids-2-5" || ageGroup === "toddler";
+                        const label = isKids
+                          ? g === "female" ? "Girl" : "Boy"
+                          : g === "female" ? "Female" : "Male";
+                        return (
+                          <button key={g} onClick={() => setGender(g)}
+                            className={`py-4 rounded-2xl border text-sm font-semibold transition-all ${
+                              gender === g
+                                ? "border-violet-500 bg-violet-500/10 text-violet-300"
+                                : "border-white/[0.07] bg-white/[0.03] text-white/60 hover:border-violet-500/40"
+                            }`}>
+                            {label}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
-
-                  {/* Ethnicity */}
                   <div>
                     <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-3">Ethnicity</p>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                       {ETHNICITIES.map((eth) => (
-                        <button
-                          key={eth}
-                          onClick={() => setEthnicity(eth)}
-                          className={`
-                            flex flex-col items-center gap-2 py-3 px-2 rounded-xl border transition-all cursor-pointer
-                            ${ethnicity === eth
-                              ? "border-violet-500 bg-violet-500/20"
-                              : "border-white/10 bg-white/5 hover:border-violet-500/50"
-                            }
-                          `}
-                        >
-                          <div className={`
-                            w-10 h-10 rounded-full border-2 flex items-center justify-center text-lg
-                            ${ethnicity === eth ? "border-violet-500 bg-violet-500/20" : "border-white/10 bg-white/5"}
-                          `}>
-                            👤
-                          </div>
-                          <span className={`text-[10px] text-center leading-tight transition-colors ${ethnicity === eth ? "text-violet-300" : "text-white/40"}`}>
-                            {eth}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Occasion */}
-                  <div>
-                    <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-3">Occasion</p>
-                    <div className="flex flex-wrap gap-2">
-                      {OCCASIONS.map((occ) => (
-                        <button
-                          key={occ}
-                          onClick={() => setOccasion(occ)}
-                          className={`
-                            px-4 py-2 rounded-full border text-sm transition-all
-                            ${occasion === occ
-                              ? "bg-violet-600/20 border-violet-500 text-violet-300"
-                              : "bg-white/[0.03] border-white/[0.07] text-white/50 hover:border-white/20"
-                            }
-                          `}
-                        >
-                          {occ}
+                        <button key={eth} onClick={() => setEthnicity(eth)}
+                          className={`py-2.5 px-3 rounded-xl border text-xs font-medium transition-all ${
+                            ethnicity === eth
+                              ? "border-violet-500 bg-violet-500/10 text-violet-300"
+                              : "border-white/[0.07] bg-white/[0.03] text-white/50 hover:border-violet-500/40"
+                          }`}>
+                          {eth}
                         </button>
                       ))}
                     </div>
@@ -659,19 +766,230 @@ export default function DashboardPage() {
                 </div>
               )}
 
-              <button
-                disabled={!uploadedUrl || uploading || !gender || !ethnicity || !occasion}
-                onClick={handleGenerate}
-                className={`
-                  w-full py-3.5 rounded-xl text-sm font-medium transition-colors mt-6
-                  ${uploadedUrl && !uploading && gender && ethnicity && occasion
-                    ? "bg-violet-600 hover:bg-violet-500 text-white"
-                    : "bg-white/[0.04] text-white/20 cursor-not-allowed"
-                  }
-                `}
-              >
-                Generate Shoots →
-              </button>
+              {/* ── Step 5: Background ── */}
+              {wizardStep === 5 && (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {BACKGROUNDS.map((bg) => (
+                    <button key={bg.id} onClick={() => setBackground(bg.id)}
+                      className={`flex flex-col items-center gap-3 p-4 rounded-2xl border transition-all ${
+                        background === bg.id
+                          ? "border-violet-500 bg-violet-500/10"
+                          : "border-white/[0.07] bg-white/[0.03] hover:border-violet-500/40 hover:bg-white/[0.05]"
+                      }`}>
+                      <div className={`w-8 h-8 rounded-full ${bg.swatch} border border-white/10`} />
+                      <span className={`text-xs font-medium text-center leading-tight ${
+                        background === bg.id ? "text-violet-300" : "text-white/50"
+                      }`}>{bg.id}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* ── Step 6: Occasion ── */}
+              {wizardStep === 6 && (
+                <div className="flex flex-wrap gap-2">
+                  {OCCASIONS.map((occ) => (
+                    <button key={occ} onClick={() => setOccasion(occ)}
+                      className={`px-4 py-2 rounded-full border text-sm transition-all ${
+                        occasion === occ
+                          ? "bg-violet-600/20 border-violet-500 text-violet-300"
+                          : "bg-white/[0.03] border-white/[0.07] text-white/50 hover:border-white/20"
+                      }`}>
+                      {occ}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* ── Step 7: Sides ── */}
+              {wizardStep === 7 && category && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {SIDES_BY_CATEGORY[category].map((side) => {
+                    const isFront = side.id === "front";
+                    const isSelected = sides.includes(side.id);
+                    return (
+                      <button key={side.id}
+                        disabled={isFront}
+                        onClick={() => {
+                          if (isFront) return;
+                          setSides((prev) =>
+                            prev.includes(side.id) ? prev.filter((s) => s !== side.id) : [...prev, side.id]
+                          );
+                        }}
+                        className={`flex items-center gap-3 p-4 rounded-2xl border transition-all ${
+                          isSelected
+                            ? "border-violet-500 bg-violet-500/10 text-violet-300"
+                            : "border-white/[0.07] bg-white/[0.03] text-white/50 hover:border-violet-500/40"
+                        } ${isFront ? "cursor-default" : "cursor-pointer"}`}>
+                        <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${
+                          isSelected ? "border-violet-500 bg-violet-500" : "border-white/20"
+                        }`}>
+                          {isSelected && (
+                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                              <path d="M2 5l2.5 2.5L8 3" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          )}
+                        </div>
+                        <span className="text-sm font-medium">
+                          {side.label}
+                          {isFront && <span className="ml-1 text-[10px] text-white/30">(always on)</span>}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* ── Step 8: Number of images per side ── */}
+              {wizardStep === 8 && (
+                <div>
+                  <div className="flex gap-2 mb-4">
+                    {([1, 2, 3, 4] as const).map((n) => (
+                      <button key={n} onClick={() => setNumImages(n)}
+                        className={`w-14 h-14 rounded-xl border text-lg font-bold transition-all ${
+                          numImages === n
+                            ? "border-violet-500 bg-violet-500/10 text-violet-300"
+                            : "border-white/[0.07] bg-white/[0.03] text-white/50 hover:border-violet-500/40"
+                        }`}>
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-sm text-white/40">
+                    You&apos;ll get{" "}
+                    <span className="text-white/80 font-semibold">
+                      {numImages * sides.length} image{numImages * sides.length !== 1 ? "s" : ""}
+                    </span>{" "}
+                    ({numImages} per side × {sides.length} side{sides.length !== 1 ? "s" : ""})
+                  </p>
+                </div>
+              )}
+
+              {/* ── Step 9: Quality ── */}
+              {wizardStep === 9 && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {(["standard", "high", "ultra"] as Quality[]).map((q) => {
+                    const meta = {
+                      standard: { title: "Standard", desc: "Fast generation (~10s)\nGreat for previews",  credits: "1 credit / image" },
+                      high:     { title: "High",     desc: "Better detail & sharpness\nRecommended",       credits: "3 credits / image" },
+                      ultra:    { title: "Ultra",    desc: "Maximum resolution\nBest for print & ads",     credits: "5 credits / image" },
+                    }[q];
+                    return (
+                      <button key={q} onClick={() => setQuality(q)}
+                        className={`flex flex-col gap-2 p-5 rounded-2xl border text-left transition-all ${
+                          quality === q
+                            ? "border-violet-500 bg-violet-500/10"
+                            : "border-white/[0.07] bg-white/[0.03] hover:border-violet-500/40 hover:bg-white/[0.05]"
+                        }`}>
+                        <div className="flex items-center justify-between">
+                          <p className={`text-sm font-semibold ${quality === q ? "text-violet-300" : "text-white/80"}`}>{meta.title}</p>
+                          {q === "high" && (
+                            <span className="text-[9px] bg-violet-500/20 text-violet-300 px-1.5 py-0.5 rounded-full border border-violet-500/30">
+                              Recommended
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-white/40 leading-relaxed whitespace-pre-line">{meta.desc}</p>
+                        <p className={`text-[10px] font-medium ${quality === q ? "text-violet-400" : "text-white/30"}`}>{meta.credits}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* ── Step 10: Video reel ── */}
+              {wizardStep === 10 && (
+                <div className="grid grid-cols-2 gap-3">
+                  {([true, false] as const).map((val) => (
+                    <button key={String(val)} onClick={() => setAddVideo(val)}
+                      className={`flex flex-col gap-2 p-5 rounded-2xl border text-left transition-all ${
+                        addVideo === val
+                          ? "border-violet-500 bg-violet-500/10"
+                          : "border-white/[0.07] bg-white/[0.03] hover:border-violet-500/40"
+                      }`}>
+                      <p className={`text-sm font-semibold ${addVideo === val ? "text-violet-300" : "text-white/80"}`}>
+                        {val ? "Yes" : "No"}
+                      </p>
+                      <p className="text-xs text-white/40 leading-relaxed">
+                        {val ? "Generate a cinematic reel from your images" : "Images only"}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* ── Step 11: Summary ── */}
+              {wizardStep === 11 && (
+                <div className="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-6 space-y-3">
+                  {(
+                    [
+                      ["Category",    category ?? "—"],
+                      ["Age Group",   ageGroup  ?? "—"],
+                      ["Gender",      gender    ?? "—"],
+                      ["Ethnicity",   ethnicity ?? "—"],
+                      ["Background",  background ?? "—"],
+                      ["Occasion",    occasion  ?? "—"],
+                      ["Sides",       sides.join(", ")],
+                      ["Images/side", String(numImages)],
+                      ["Quality",     `${quality} (${QUALITY_CREDITS[quality]}cr each)`],
+                    ] as [string, string][]
+                  ).map(([label, value]) => (
+                    <div key={label} className="flex justify-between text-sm">
+                      <span className="text-white/40">{label}</span>
+                      <span className="text-white/80 font-medium capitalize">{value}</span>
+                    </div>
+                  ))}
+                  <div className="border-t border-white/[0.07] pt-3 space-y-1">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-white/40">Total images</span>
+                      <span className="text-white/80 font-medium">{numImages * sides.length}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-white/40">Total credits</span>
+                      <span className="text-violet-400 font-bold">{numImages * sides.length * QUALITY_CREDITS[quality]}</span>
+                    </div>
+                    {addVideo && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-white/40">Video reel</span>
+                        <span className="text-emerald-400 font-medium">Free ✓</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* ── Navigation buttons ── */}
+              <div className="flex gap-3 mt-8">
+                {wizardStep > 1 && (
+                  <button
+                    onClick={() => setWizardStep((s) => s - 1)}
+                    className="px-5 py-3 rounded-xl border border-white/[0.07] text-sm text-white/60 hover:text-white hover:border-white/20 transition-colors"
+                  >
+                    ← Back
+                  </button>
+                )}
+                {wizardStep < 11 ? (
+                  <button
+                    disabled={!isStepValid}
+                    onClick={() => setWizardStep((s) => s + 1)}
+                    className={`flex-1 py-3 rounded-xl text-sm font-medium transition-colors ${
+                      isStepValid
+                        ? "bg-violet-600 hover:bg-violet-500 text-white"
+                        : "bg-white/[0.04] text-white/20 cursor-not-allowed"
+                    }`}
+                  >
+                    Next →
+                  </button>
+                ) : (
+                  <button
+                    disabled={!uploadedUrl || !gender || !ethnicity || !occasion}
+                    onClick={handleGenerate}
+                    className="flex-1 py-3 rounded-xl text-sm font-medium bg-violet-600 hover:bg-violet-500 text-white transition-colors disabled:bg-white/[0.04] disabled:text-white/20 disabled:cursor-not-allowed"
+                  >
+                    Generate Shoots →
+                  </button>
+                )}
+              </div>
             </Container>
           )}
 
@@ -729,7 +1047,7 @@ export default function DashboardPage() {
                     Results
                   </p>
                   <h1 className="text-2xl font-bold">Your generated shoots</h1>
-                  <p className="text-white/40 text-sm mt-1">6 images ready for download</p>
+                  <p className="text-white/40 text-sm mt-1">{results.length} image{results.length !== 1 ? "s" : ""} ready for download</p>
                 </div>
                 <button
                   onClick={handleReset}

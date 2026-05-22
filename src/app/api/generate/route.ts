@@ -7,13 +7,65 @@ export const runtime = "nodejs";
 
 const FASHN_BASE = "https://api.fashn.ai/v1";
 const POLL_INTERVAL_MS = 3000;
-const MAX_POLLS = 40; // 2 minutes max
+const MAX_POLLS = 40; // 2 minutes max per side
+
+const AGE_LABEL: Record<string, string> = {
+  adult:       "{ethnicity} adult {gender} model",
+  teen:        "{ethnicity} teen {gender} model, approximately 15 years old",
+  "kids-6-12": "{ethnicity} child {gender} model, approximately 9 years old",
+  "kids-2-5":  "{ethnicity} young child {gender} model, approximately 3 years old",
+  toddler:     "{ethnicity} toddler model, approximately 1 year old",
+};
+
+const SIDE_SUFFIX: Record<string, string> = {
+  front:             "",
+  back:              "back view",
+  "side-profile":    "side profile view",
+  "side-view":       "side view",
+  "top-down":        "top down view",
+  "detail-close-up": "detail close-up shot",
+  "interior-shot":   "interior shot",
+};
+
+const CATEGORY_HINT: Record<string, string> = {
+  clothing: "fashion clothing photography",
+  shoes:    "footwear photography, full body or feet focus",
+  jewelry:  "jewelry editorial photography, close-up detail",
+  bags:     "handbag product photography",
+  hats:     "headwear photography, upper body",
+};
+
+const QUALITY_MODE: Record<string, string> = {
+  standard: "performance",
+  high:     "balanced",
+  ultra:    "quality",
+};
+
+function buildPrompt(
+  side: string,
+  gender: string,
+  ethnicity: string,
+  occasion: string,
+  ageGroup: string,
+  category: string,
+  background: string,
+): string {
+  const ageLabel = (AGE_LABEL[ageGroup] ?? `${ethnicity} ${gender} model`)
+    .replace("{ethnicity}", ethnicity)
+    .replace("{gender}", gender);
+  const sideStr = SIDE_SUFFIX[side] ?? "";
+  const catHint = CATEGORY_HINT[category] ?? "fashion photography";
+  return `${ageLabel}, ${occasion} setting, ${background} background, ${catHint}${sideStr ? ", " + sideStr : ""}, professional fashion photography`;
+}
 
 export async function POST(request: Request) {
   const body = await request.json();
-  console.log("[/api/generate] request body:", JSON.stringify(body));
+  console.log("[/api/generate] request body:", JSON.stringify({ ...body, garmentImageUrl: body.garmentImageUrl }));
 
-  const { garmentImageUrl, gender, ethnicity, occasion } = body;
+  const {
+    garmentImageUrl, gender, ethnicity, occasion,
+    ageGroup, category, background, sides, numImages, quality,
+  } = body;
 
   if (!garmentImageUrl || !gender || !ethnicity || !occasion) {
     const missing = { garmentImageUrl, gender, ethnicity, occasion };
@@ -39,97 +91,108 @@ export async function POST(request: Request) {
     return Response.json({ error: "Failed to read uploaded file" }, { status: 500 });
   }
 
-  const fashnPayload = {
-    model_name: "product-to-model",
-    inputs: {
-      product_image: base64Image,
-      prompt: `${ethnicity} ${gender} model, ${occasion} setting, professional fashion photography`,
-      num_images: 1,
-      output_format: "png",
-    },
-  };
-  console.log("[/api/generate] sending to FASHN (image omitted):", JSON.stringify({ ...fashnPayload, inputs: { ...fashnPayload.inputs, product_image: "[base64]" } }));
+  const sidesArr: string[] = Array.isArray(sides) && sides.length > 0 ? sides : ["front"];
+  const nImages: number = typeof numImages === "number" && numImages >= 1 && numImages <= 4 ? numImages : 1;
+  const qualityMode = QUALITY_MODE[quality as string] ?? "balanced";
+  const resolvedAgeGroup = (ageGroup as string) ?? "adult";
+  const resolvedCategory = (category as string) ?? "clothing";
+  const resolvedBackground = (background as string) ?? "Studio White";
 
-  const runRes = await fetch(`${FASHN_BASE}/run`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(fashnPayload),
-  });
+  const allImages: string[] = [];
 
-  if (!runRes.ok) {
-    const text = await runRes.text();
-    console.error("[/api/generate] FASHN /run error:", runRes.status, text);
-    return Response.json(
-      { error: `Failed to start generation: ${text}` },
-      { status: runRes.status }
-    );
-  }
+  for (const side of sidesArr) {
+    const prompt = buildPrompt(side, gender, ethnicity, occasion, resolvedAgeGroup, resolvedCategory, resolvedBackground);
+    const fashnPayload = {
+      model_name: "product-to-model",
+      inputs: {
+        product_image: base64Image,
+        prompt,
+        num_images: nImages,
+        output_format: "png",
+        generation_mode: qualityMode,
+      },
+    };
+    console.log(`[/api/generate] side="${side}" prompt="${prompt}"`);
 
-  const runData = await runRes.json();
-  console.log("[/api/generate] FASHN /run response:", JSON.stringify(runData));
-  const { id } = runData;
-
-  // Poll until complete
-  for (let i = 0; i < MAX_POLLS; i++) {
-    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
-
-    const statusRes = await fetch(`${FASHN_BASE}/status/${id}`, {
-      headers: { Authorization: `Bearer ${apiKey}` },
+    const runRes = await fetch(`${FASHN_BASE}/run`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify(fashnPayload),
     });
 
-    if (!statusRes.ok) {
-      const text = await statusRes.text();
-      console.error("[/api/generate] FASHN /status error:", statusRes.status, text);
-      return Response.json(
-        { error: "Failed to poll generation status" },
-        { status: statusRes.status }
-      );
+    if (!runRes.ok) {
+      const text = await runRes.text();
+      console.error("[/api/generate] FASHN /run error:", runRes.status, text);
+      return Response.json({ error: `Failed to start generation: ${text}` }, { status: runRes.status });
     }
 
-    const statusData = await statusRes.json();
-    console.log(`[/api/generate] poll ${i + 1}:`, JSON.stringify(statusData));
-    const { status, output, error } = statusData;
+    const { id } = await runRes.json();
+    console.log(`[/api/generate] side="${side}" job id:`, id);
 
-    if (status === "completed") {
-      // Save project to DB if user is authenticated
-      try {
-        const { userId } = await auth();
-        if (userId) {
-          const clerkUser = await currentUser();
-          const email = clerkUser?.emailAddresses?.[0]?.emailAddress ?? "";
-          const user = await prisma.user.upsert({
-            where: { clerkId: userId },
-            create: { clerkId: userId, email },
-            update: { email },
-          });
-          await prisma.project.create({
-            data: {
-              userId: user.id,
-              name: `${occasion} · ${ethnicity} ${gender}`,
-              status: "completed",
-              gender,
-              ethnicity,
-              occasion,
-              uploads: { create: [{ imageUrl: garmentImageUrl }] },
-              images: { create: (output as string[]).map((imageUrl) => ({ imageUrl })) },
-            },
-          });
-          console.log("[/api/generate] project saved to DB for user:", userId);
-        }
-      } catch (dbErr) {
-        console.error("[/api/generate] failed to save project to DB:", dbErr);
+    let sideOutput: string[] | null = null;
+
+    for (let i = 0; i < MAX_POLLS; i++) {
+      await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+
+      const statusRes = await fetch(`${FASHN_BASE}/status/${id}`, {
+        headers: { Authorization: `Bearer ${apiKey}` },
+      });
+
+      if (!statusRes.ok) {
+        const text = await statusRes.text();
+        console.error("[/api/generate] FASHN /status error:", statusRes.status, text);
+        return Response.json({ error: "Failed to poll generation status" }, { status: statusRes.status });
       }
 
-      return Response.json({ images: output });
+      const statusData = await statusRes.json();
+      console.log(`[/api/generate] side="${side}" poll ${i + 1}:`, statusData.status);
+      const { status, output, error } = statusData;
+
+      if (status === "completed") {
+        sideOutput = output as string[];
+        break;
+      }
+
+      if (status === "failed") {
+        return Response.json({ error: error ?? "Generation failed" }, { status: 500 });
+      }
     }
 
-    if (status === "failed") {
-      return Response.json({ error: error ?? "Generation failed" }, { status: 500 });
+    if (!sideOutput) {
+      return Response.json({ error: `Generation timed out on side: ${side}` }, { status: 504 });
     }
+
+    allImages.push(...sideOutput);
   }
 
-  return Response.json({ error: "Generation timed out" }, { status: 504 });
+  // Save project to DB if user is authenticated
+  try {
+    const { userId } = await auth();
+    if (userId) {
+      const clerkUser = await currentUser();
+      const email = clerkUser?.emailAddresses?.[0]?.emailAddress ?? "";
+      const user = await prisma.user.upsert({
+        where: { clerkId: userId },
+        create: { clerkId: userId, email },
+        update: { email },
+      });
+      await prisma.project.create({
+        data: {
+          userId: user.id,
+          name: `${resolvedCategory} · ${occasion} · ${ethnicity} ${gender}`,
+          status: "completed",
+          gender,
+          ethnicity,
+          occasion,
+          uploads: { create: [{ imageUrl: garmentImageUrl }] },
+          images: { create: allImages.map((imageUrl) => ({ imageUrl })) },
+        },
+      });
+      console.log("[/api/generate] project saved to DB for user:", userId);
+    }
+  } catch (dbErr) {
+    console.error("[/api/generate] failed to save project to DB:", dbErr);
+  }
+
+  return Response.json({ images: allImages });
 }
