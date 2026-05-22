@@ -14,7 +14,7 @@ type Side = "front" | "back" | "side-profile" | "side-view" | "top-down" | "deta
 type Background = "Studio White" | "Outdoor Park" | "City Street" | "Modern Office" | "Minimal Grey" | "Luxury Interior" | "Beach" | "Rooftop";
 type Quality = "standard" | "high" | "ultra";
 type ReelFormat = "9:16" | "1:1" | "16:9";
-type ReelTemplate = "ken-burns" | "zoom-out" | "pan-left" | "pan-right" | "fade-slideshow" | "cinematic";
+type ReelTemplate = "ken-burns" | "zoom-out" | "pan-left" | "pan-right" | "fade-slideshow" | "cinematic" | "drift-up" | "pulse";
 type MusicTrack = "track-1" | "track-2" | "custom";
 type ReelMode = "canvas" | "ai-video";
 
@@ -181,13 +181,17 @@ const REEL_FORMATS: { id: ReelFormat; label: string; subtitle: string; width: nu
 ];
 
 const REEL_TEMPLATES: { id: ReelTemplate; name: string; desc: string; icon: string }[] = [
-  { id: "ken-burns",      name: "Ken Burns",     desc: "Slow zoom in + slight pan",        icon: "🔍" },
-  { id: "zoom-out",       name: "Zoom Out",       desc: "Starts close, pulls back",          icon: "🔭" },
-  { id: "pan-left",       name: "Pan Left",       desc: "Camera moves left to right",        icon: "⬅"  },
-  { id: "pan-right",      name: "Pan Right",      desc: "Camera moves right to left",        icon: "➡"  },
+  { id: "ken-burns",      name: "Ken Burns",     desc: "Smooth zoom in + diagonal pan",     icon: "🔍" },
+  { id: "zoom-out",       name: "Zoom Out",       desc: "Pulls back with subtle rotation",   icon: "🔭" },
+  { id: "pan-left",       name: "Pan Left",       desc: "Eased pan with gentle zoom",        icon: "⬅"  },
+  { id: "pan-right",      name: "Pan Right",      desc: "Eased pan with gentle zoom",        icon: "➡"  },
   { id: "fade-slideshow", name: "Fade Slideshow", desc: "Multiple images with fade",         icon: "🎞"  },
-  { id: "cinematic",      name: "Cinematic",      desc: "Zoom + fade combo, letterbox bars", icon: "🎬" },
+  { id: "cinematic",      name: "Cinematic",      desc: "Letterbox + vignette + Ken Burns",  icon: "🎬" },
+  { id: "drift-up",       name: "Drift Up",       desc: "Slow upward float + gentle zoom",   icon: "⬆"  },
+  { id: "pulse",          name: "Pulse",          desc: "Rhythmic scale pulse, 2 beats",     icon: "💓" },
 ];
+
+const easeInOut = (t: number) => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
 
 const MUSIC_TRACKS: { id: Exclude<MusicTrack, "custom">; label: string; src: string }[] = [
   { id: "track-1", label: "Fashion Cinematic", src: "/music/track-1.mp3" },
@@ -345,6 +349,7 @@ export default function DashboardPage() {
   const [aiVideoProgress, setAiVideoProgress] = useState(0);
   const [aiVideoOutputUrl, setAiVideoOutputUrl] = useState<string | null>(null);
   const [aiVideoError, setAiVideoError] = useState<string | null>(null);
+  const [aiVideoMotionPrompt, setAiVideoMotionPrompt] = useState("");
 
   useEffect(() => {
     if (activeNav !== "projects") return;
@@ -530,6 +535,7 @@ export default function DashboardPage() {
     setAiVideoProgress(0);
     setAiVideoOutputUrl(null);
     setAiVideoError(null);
+    setAiVideoMotionPrompt("");
     setEditingProjectName(null);
     if (fileRef.current) fileRef.current.value = "";
     if (musicFileRef.current) musicFileRef.current.value = "";
@@ -646,7 +652,7 @@ export default function DashboardPage() {
       const res = await fetch("/api/video", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageUrl: aiVideoImageUrl, duration: aiVideoDuration, resolution: aiVideoResolution }),
+        body: JSON.stringify({ imageUrl: aiVideoImageUrl, duration: aiVideoDuration, resolution: aiVideoResolution, motionPrompt: aiVideoMotionPrompt.trim() || undefined }),
       });
       const data = await res.json();
       clearInterval(timer);
@@ -762,27 +768,44 @@ export default function DashboardPage() {
       ctx.restore();
     };
 
+    const drawVignette = () => {
+      const cx = W / 2, cy = H / 2, r = Math.max(W, H) * 0.75;
+      const gradient = ctx.createRadialGradient(cx, cy, r * 0.5, cx, cy, r);
+      gradient.addColorStop(0, "rgba(0,0,0,0)");
+      gradient.addColorStop(1, "rgba(0,0,0,0.4)");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, W, H);
+    };
+
     const drawFrame = (t: number) => {
+      const e = easeInOut(t);
       ctx.fillStyle = "#000";
       ctx.fillRect(0, 0, W, H);
 
       if (reelTemplate === "ken-burns") {
-        const scale = 1 + 0.15 * t;
-        const tx = -0.02 * t * W;
+        const scale = 1 + 0.2 * e;
+        const tx = -0.03 * e * W;
+        const ty = -0.02 * e * H;
         const dw = W * scale, dh = H * scale;
-        drawCovered(imgs[0], (W - dw) / 2 + tx, (H - dh) / 2, dw, dh);
+        drawCovered(imgs[0], (W - dw) / 2 + tx, (H - dh) / 2 + ty, dw, dh);
       } else if (reelTemplate === "zoom-out") {
-        const scale = 1.2 - 0.2 * t;
+        const scale = 1.3 - 0.3 * e;
+        const angle = (0.5 - 0.5 * e) * Math.PI / 180;
         const dw = W * scale, dh = H * scale;
+        ctx.save();
+        ctx.translate(W / 2, H / 2);
+        ctx.rotate(angle);
+        ctx.translate(-W / 2, -H / 2);
         drawCovered(imgs[0], (W - dw) / 2, (H - dh) / 2, dw, dh);
+        ctx.restore();
       } else if (reelTemplate === "pan-left") {
-        const scale = 1.1;
-        const tx = (0.05 - 0.1 * t) * W;
+        const scale = 1.05 - 0.05 * e;
+        const tx = (0.08 - 0.16 * e) * W;
         const dw = W * scale, dh = H * scale;
         drawCovered(imgs[0], (W - dw) / 2 + tx, (H - dh) / 2, dw, dh);
       } else if (reelTemplate === "pan-right") {
-        const scale = 1.1;
-        const tx = (-0.05 + 0.1 * t) * W;
+        const scale = 1.05 - 0.05 * e;
+        const tx = (-0.08 + 0.16 * e) * W;
         const dw = W * scale, dh = H * scale;
         drawCovered(imgs[0], (W - dw) / 2 + tx, (H - dh) / 2, dw, dh);
       } else if (reelTemplate === "fade-slideshow") {
@@ -801,15 +824,29 @@ export default function DashboardPage() {
           drawCovered(imgs[imgIdx + 1], 0, 0, W, H, 1 - curAlpha);
         }
       } else if (reelTemplate === "cinematic") {
-        const scale = 1 + 0.15 * t;
-        const tx = -0.02 * t * W;
+        const scale = 1 + 0.2 * e;
+        const tx = -0.03 * e * W;
+        const ty = -0.02 * e * H;
         const dw = W * scale, dh = H * scale;
-        drawCovered(imgs[0], (W - dw) / 2 + tx, (H - dh) / 2, dw, dh);
+        drawCovered(imgs[0], (W - dw) / 2 + tx, (H - dh) / 2 + ty, dw, dh);
+        drawVignette();
         const barH = Math.round(H * 0.15);
         ctx.fillStyle = "#000";
         ctx.fillRect(0, 0, W, barH);
         ctx.fillRect(0, H - barH, W, barH);
+      } else if (reelTemplate === "drift-up") {
+        const scale = 1.1 - 0.1 * e;
+        const ty = (0.05 - 0.1 * e) * H;
+        const dw = W * scale, dh = H * scale;
+        drawCovered(imgs[0], (W - dw) / 2, (H - dh) / 2 + ty, dw, dh);
+      } else if (reelTemplate === "pulse") {
+        const scale = 1 + 0.05 * Math.sin(t * Math.PI * 4);
+        const dw = W * scale, dh = H * scale;
+        drawCovered(imgs[0], (W - dw) / 2, (H - dh) / 2, dw, dh);
       }
+
+      // Vignette on all templates except cinematic (which draws it before letterbox)
+      if (reelTemplate !== "cinematic") drawVignette();
 
       if (reelBrandName.trim()) {
         const barH = Math.round(H * 0.08);
@@ -1935,6 +1972,38 @@ export default function DashboardPage() {
                             {AI_VIDEO_CREDITS[aiVideoResolution]} credit{AI_VIDEO_CREDITS[aiVideoResolution] !== 1 ? "s" : ""}
                           </span>
                           <span className="text-white/20 text-xs">· {aiVideoDuration}s · {aiVideoResolution}</span>
+                        </div>
+                      )}
+
+                      {/* Motion prompt */}
+                      {!aiVideoOutputUrl && (
+                        <div>
+                          <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-3">
+                            Model Motion <span className="normal-case text-white/20">(optional)</span>
+                          </p>
+                          <input
+                            type="text"
+                            value={aiVideoMotionPrompt}
+                            onChange={(e) => setAiVideoMotionPrompt(e.target.value)}
+                            placeholder="e.g. walking confidently, sexy pose, smart look, fabric flowing, slow spin..."
+                            maxLength={120}
+                            className="w-full bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3 text-sm text-white placeholder-white/20 focus:outline-none focus:border-violet-500/50 transition-colors"
+                          />
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            {["Walking", "Sexy Pose", "Smart Look", "Fabric Flowing", "Slow Spin", "Runway Walk"].map((pill) => (
+                              <button
+                                key={pill}
+                                onClick={() => setAiVideoMotionPrompt(pill)}
+                                className={`px-3 py-1 rounded-full text-xs border transition-all ${
+                                  aiVideoMotionPrompt === pill
+                                    ? "bg-violet-600/20 border-violet-500 text-violet-300"
+                                    : "bg-white/[0.03] border-white/[0.07] text-white/40 hover:border-white/20 hover:text-white/70"
+                                }`}
+                              >
+                                {pill}
+                              </button>
+                            ))}
+                          </div>
                         </div>
                       )}
 
