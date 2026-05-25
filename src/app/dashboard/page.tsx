@@ -365,6 +365,45 @@ export default function DashboardPage() {
   const [aiVideoError, setAiVideoError] = useState<string | null>(null);
   const [aiVideoMotionPrompt, setAiVideoMotionPrompt] = useState("");
 
+  // ── WooCommerce / Integrations state ──────────────────────────────────────
+  const [activeIntegration, setActiveIntegration] = useState<string | null>(null);
+  const [wcConnected, setWcConnected]             = useState(false);
+  const [wcForm, setWcForm]                       = useState({ siteUrl: "", consumerKey: "", consumerSecret: "", appPassword: "" });
+  const [wcConnecting, setWcConnecting]           = useState(false);
+  const [wcError, setWcError]                     = useState("");
+  const [wcShowSecret, setWcShowSecret]           = useState(false);
+  const [wcShowAppPw, setWcShowAppPw]             = useState(false);
+
+  // ── WooCommerce Share Modal state ─────────────────────────────────────────
+  const [shareTab, setShareTab]                           = useState<"social" | "woocommerce">("social");
+  const [wcShareConnected, setWcShareConnected]           = useState<boolean | null>(null);
+  const [wcFeaturedImage, setWcFeaturedImage]             = useState<string>("");
+  const [wcGalleryImages, setWcGalleryImages]             = useState<string[]>([]);
+  const [wcTitle, setWcTitle]                             = useState("");
+  const [wcShortDesc, setWcShortDesc]                     = useState("");
+  const [wcDescription, setWcDescription]                 = useState("");
+  const [wcTags, setWcTags]                               = useState("");
+  const [wcPrice, setWcPrice]                             = useState("");
+  const [wcSalePrice, setWcSalePrice]                     = useState("");
+  const [wcSku, setWcSku]                                 = useState("");
+  const [wcStock, setWcStock]                             = useState(100);
+  const [wcCategoryId, setWcCategoryId]                   = useState<number | null>(null);
+  const [wcStatus, setWcStatus]                           = useState<"draft" | "publish">("draft");
+  const [wcAttributes, setWcAttributes]                   = useState<{name: string; values: string[]}[]>([]);
+  const [wcVariations, setWcVariations]                   = useState<{attributes: {name: string; option: string}[]; stockQuantity: string}[]>([]);
+  const [wcCategories, setWcCategories]                   = useState<{id: number; name: string}[]>([]);
+  const [wcPublishing, setWcPublishing]                   = useState(false);
+  const [wcPublishStep, setWcPublishStep]                 = useState("");
+  const [wcProductUrl, setWcProductUrl]                   = useState("");
+  const [wcEnableVariations, setWcEnableVariations]       = useState(false);
+  const [wcGeneratingContent, setWcGeneratingContent]     = useState(false);
+  const [wcPublishError, setWcPublishError]               = useState("");
+  const [wcAttrFormVisible, setWcAttrFormVisible]         = useState(false);
+  const [wcAttrName, setWcAttrName]                       = useState("Size");
+  const [wcAttrCustomName, setWcAttrCustomName]           = useState("");
+  const [wcAttrValues, setWcAttrValues]                   = useState<string[]>([]);
+  const [wcAttrValueInput, setWcAttrValueInput]           = useState("");
+
   useEffect(() => {
     if (activeNav !== "projects") return;
     setProjectsLoading(true);
@@ -374,6 +413,37 @@ export default function DashboardPage() {
       .catch(() => setProjects([]))
       .finally(() => setProjectsLoading(false));
   }, [activeNav]);
+
+  // Load WooCommerce connection status when Settings tab is opened
+  useEffect(() => {
+    if (activeNav !== "settings") return;
+    fetch("/api/settings/woocommerce")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.connected) {
+          setWcConnected(true);
+          setWcForm((f) => ({ ...f, siteUrl: data.wpSiteUrl }));
+        }
+      })
+      .catch(() => {});
+  }, [activeNav]);
+
+  // Check WC connection when WooCommerce share tab is first opened
+  useEffect(() => {
+    if (shareTab !== "woocommerce" || !shareProject || wcShareConnected !== null) return;
+    fetch("/api/settings/woocommerce")
+      .then((r) => r.json())
+      .then((data) => {
+        setWcShareConnected(!!data.connected);
+        if (data.connected) {
+          fetch("/api/woocommerce/categories")
+            .then((r) => r.json())
+            .then((d) => setWcCategories(d.categories ?? []))
+            .catch(() => {});
+        }
+      })
+      .catch(() => setWcShareConnected(false));
+  }, [shareTab, shareProject, wcShareConnected]);
 
   useEffect(() => {
     if (!generating) return;
@@ -514,6 +584,35 @@ export default function DashboardPage() {
     setShareCaption("");
     setShareCaptionLoading(false);
     setShareCopied(false);
+    // Reset WooCommerce share state
+    setShareTab("social");
+    setWcShareConnected(null);
+    setWcFeaturedImage("");
+    setWcGalleryImages([]);
+    setWcTitle("");
+    setWcShortDesc("");
+    setWcDescription("");
+    setWcTags("");
+    setWcPrice("");
+    setWcSalePrice("");
+    setWcSku("");
+    setWcStock(100);
+    setWcCategoryId(null);
+    setWcStatus("draft");
+    setWcAttributes([]);
+    setWcVariations([]);
+    setWcCategories([]);
+    setWcPublishing(false);
+    setWcPublishStep("");
+    setWcProductUrl("");
+    setWcEnableVariations(false);
+    setWcGeneratingContent(false);
+    setWcPublishError("");
+    setWcAttrFormVisible(false);
+    setWcAttrName("Size");
+    setWcAttrCustomName("");
+    setWcAttrValues([]);
+    setWcAttrValueInput("");
   };
 
   const toggleShareImage = (url: string) => {
@@ -564,6 +663,100 @@ export default function DashboardPage() {
       if (shareCaption) navigator.clipboard.writeText(shareCaption).catch(() => {});
       window.open(platform === "Instagram" ? "https://www.instagram.com" : "https://www.tiktok.com", "_blank");
     }
+  };
+
+  const handleWcGenerateContent = async () => {
+    if (!shareProject) return;
+    setWcGeneratingContent(true);
+    try {
+      const category = shareProject.name.split(" ")[0] || "fashion";
+      const res = await fetch("/api/caption", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          category,
+          occasion: shareProject.occasion,
+          gender: shareProject.gender,
+          ethnicity: shareProject.ethnicity,
+          platform: "WooCommerce product",
+        }),
+      });
+      const data = await res.json();
+      if (data.caption) {
+        const lines = data.caption.split("\n").map((l: string) => l.trim()).filter(Boolean);
+        const hashLines = lines.filter((l: string) => /^#/.test(l) || /^(#\w+\s*)+$/.test(l));
+        const nonHashLines = lines.filter((l: string) => !/^#/.test(l) && !/^(#\w+\s*)+$/.test(l));
+        const hashtags = hashLines.join(" ").match(/#\w+/g) ?? [];
+        const tagsStr = hashtags.map((t: string) => t.replace("#", "")).join(", ");
+        const titleLine = (nonHashLines[0] ?? "").replace(/\*\*/g, "").slice(0, 100);
+        const shortDescLines = nonHashLines.slice(1, 3).join(" ").slice(0, 300);
+        const fullDescription = nonHashLines.join("\n\n");
+        setWcTitle(titleLine);
+        setWcShortDesc(shortDescLines);
+        setWcDescription(fullDescription);
+        setWcTags(tagsStr);
+      }
+    } catch {
+      // silently skip
+    } finally {
+      setWcGeneratingContent(false);
+    }
+  };
+
+  const handleWcPublish = async () => {
+    if (!shareProject || !wcPrice || !wcFeaturedImage) return;
+    setWcPublishing(true);
+    setWcPublishError("");
+    setWcPublishStep("Uploading images…");
+    try {
+      const res = await fetch("/api/woocommerce/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: wcTitle || shareProject.name,
+          description: wcDescription,
+          shortDescription: wcShortDesc,
+          regularPrice: wcPrice,
+          salePrice: wcSalePrice,
+          sku: wcSku,
+          stockQuantity: String(wcStock),
+          categoryId: wcCategoryId ? String(wcCategoryId) : "",
+          tags: wcTags,
+          status: wcStatus,
+          featuredImageUrl: wcFeaturedImage,
+          galleryImageUrls: wcGalleryImages,
+          attributes: wcAttributes,
+          variations: wcVariations,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setWcPublishStep("Done!");
+        setWcProductUrl(data.productUrl ?? "");
+      } else {
+        setWcPublishError(data.error ?? "Something went wrong.");
+      }
+    } catch {
+      setWcPublishError("Request failed. Please try again.");
+    } finally {
+      setWcPublishing(false);
+    }
+  };
+
+  const generateVariationCombinations = () => {
+    if (wcAttributes.length === 0) return;
+    type Combo = {attributes: {name: string; option: string}[]; stockQuantity: string};
+    let combos: Combo[] = [{ attributes: [], stockQuantity: String(wcStock) }];
+    for (const attr of wcAttributes) {
+      const expanded: Combo[] = [];
+      for (const combo of combos) {
+        for (const val of attr.values) {
+          expanded.push({ attributes: [...combo.attributes, { name: attr.name, option: val }], stockQuantity: String(wcStock) });
+        }
+      }
+      combos = expanded;
+    }
+    setWcVariations(combos);
   };
 
   const handleReset = () => {
@@ -2501,8 +2694,180 @@ export default function DashboardPage() {
             </Container>
           )}
 
-          {/* Settings */}
-          {activeNav === "settings" && renderPlaceholder("Settings", "Settings")}
+          {/* Settings — Integrations */}
+          {activeNav === "settings" && (
+            <Container className="py-10">
+              {/* Header */}
+              <div className="mb-8">
+                <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-2">Settings</p>
+                <h1 className="text-2xl font-bold">Integrations</h1>
+                <p className="text-white/40 text-sm mt-1">Connect your store and social platforms.</p>
+              </div>
+
+              {/* Integration cards grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+
+                {/* ── WooCommerce card (active) ── */}
+                <div className="border border-white/[0.07] rounded-2xl overflow-hidden">
+                  {/* Card header */}
+                  <div className="p-5 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">🛍️</span>
+                      <div>
+                        <p className="font-semibold text-sm">WooCommerce</p>
+                        <p className="text-xs mt-0.5 flex items-center gap-1">
+                          {wcConnected ? (
+                            <>
+                              <span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block" />
+                              <span className="text-green-400">Connected</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="w-1.5 h-1.5 rounded-full bg-white/20 inline-block" />
+                              <span className="text-white/40">Not connected</span>
+                            </>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setActiveIntegration(activeIntegration === "woo" ? null : "woo")}
+                      className={`text-xs px-3 py-1.5 rounded-lg border transition-all ${
+                        wcConnected
+                          ? "border-green-500/30 text-green-400 bg-green-500/10"
+                          : "border-violet-500/50 text-violet-300 bg-violet-500/10 hover:bg-violet-500/20"
+                      }`}
+                    >
+                      {wcConnected ? "Connected ✓" : "Connect"}
+                    </button>
+                  </div>
+
+                  {/* Inline expand form */}
+                  {activeIntegration === "woo" && (
+                    <div className="border-t border-white/[0.07] p-5 bg-white/[0.02] space-y-3">
+                      {/* Store URL */}
+                      <div>
+                        <label className="text-xs text-white/40 mb-1 block">Store URL</label>
+                        <input
+                          type="url"
+                          placeholder="https://yourstore.com"
+                          value={wcForm.siteUrl}
+                          onChange={(e) => setWcForm({ ...wcForm, siteUrl: e.target.value })}
+                          className="w-full bg-white/[0.03] border border-white/[0.07] rounded-lg px-3 py-2 text-sm outline-none focus:border-violet-500/50 placeholder:text-white/20"
+                        />
+                      </div>
+                      {/* Consumer Key */}
+                      <div>
+                        <label className="text-xs text-white/40 mb-1 block">Consumer Key</label>
+                        <input
+                          type="text"
+                          placeholder="ck_..."
+                          value={wcForm.consumerKey}
+                          onChange={(e) => setWcForm({ ...wcForm, consumerKey: e.target.value })}
+                          className="w-full bg-white/[0.03] border border-white/[0.07] rounded-lg px-3 py-2 text-sm outline-none focus:border-violet-500/50 placeholder:text-white/20"
+                        />
+                      </div>
+                      {/* Consumer Secret */}
+                      <div>
+                        <label className="text-xs text-white/40 mb-1 block">Consumer Secret</label>
+                        <div className="relative">
+                          <input
+                            type={wcShowSecret ? "text" : "password"}
+                            placeholder="cs_..."
+                            value={wcForm.consumerSecret}
+                            onChange={(e) => setWcForm({ ...wcForm, consumerSecret: e.target.value })}
+                            className="w-full bg-white/[0.03] border border-white/[0.07] rounded-lg px-3 py-2 pr-14 text-sm outline-none focus:border-violet-500/50 placeholder:text-white/20"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setWcShowSecret(!wcShowSecret)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 text-xs"
+                          >
+                            {wcShowSecret ? "Hide" : "Show"}
+                          </button>
+                        </div>
+                      </div>
+                      {/* App Password */}
+                      <div>
+                        <label className="text-xs text-white/40 mb-1 block">App Password</label>
+                        <div className="relative">
+                          <input
+                            type={wcShowAppPw ? "text" : "password"}
+                            placeholder="xxxx xxxx xxxx xxxx"
+                            value={wcForm.appPassword}
+                            onChange={(e) => setWcForm({ ...wcForm, appPassword: e.target.value })}
+                            className="w-full bg-white/[0.03] border border-white/[0.07] rounded-lg px-3 py-2 pr-14 text-sm outline-none focus:border-violet-500/50 placeholder:text-white/20"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setWcShowAppPw(!wcShowAppPw)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 text-xs"
+                          >
+                            {wcShowAppPw ? "Hide" : "Show"}
+                          </button>
+                        </div>
+                      </div>
+                      {/* Error */}
+                      {wcError && <p className="text-red-400 text-xs">{wcError}</p>}
+                      {/* Submit */}
+                      <button
+                        disabled={wcConnecting}
+                        onClick={async () => {
+                          setWcConnecting(true);
+                          setWcError("");
+                          const res = await fetch("/api/settings/woocommerce", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              wpSiteUrl: wcForm.siteUrl,
+                              wpConsumerKey: wcForm.consumerKey,
+                              wpConsumerSecret: wcForm.consumerSecret,
+                              wpAppPassword: wcForm.appPassword,
+                            }),
+                          });
+                          const data = await res.json();
+                          setWcConnecting(false);
+                          if (data.success) {
+                            setWcConnected(true);
+                            setActiveIntegration(null);
+                          } else {
+                            setWcError(data.error ?? "Something went wrong.");
+                          }
+                        }}
+                        className="w-full py-2 rounded-lg bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-sm font-medium transition-colors"
+                      >
+                        {wcConnecting ? "Connecting…" : "Connect Store"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* ── Coming Soon cards ── */}
+                {[
+                  { icon: "📘", name: "Facebook" },
+                  { icon: "📸", name: "Instagram" },
+                  { icon: "🎵", name: "TikTok" },
+                  { icon: "🟦", name: "Shopify" },
+                ].map(({ icon, name }) => (
+                  <div
+                    key={name}
+                    className="border border-white/[0.04] rounded-2xl p-5 opacity-50 cursor-not-allowed"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">{icon}</span>
+                        <p className="font-semibold text-sm">{name}</p>
+                      </div>
+                      <span className="text-xs px-2 py-1 rounded-md bg-white/[0.05] border border-white/[0.07] text-white/40">
+                        Coming Soon
+                      </span>
+                    </div>
+                  </div>
+                ))}
+
+              </div>
+            </Container>
+          )}
 
         </div>
       </main>
@@ -2531,126 +2896,641 @@ export default function DashboardPage() {
               </button>
             </div>
 
-            <div className="overflow-y-auto flex-1">
-
-              {/* Section 1 — Image selector */}
-              <div className="px-5 py-4 border-b border-white/[0.07]">
-                <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-3">
-                  Select Images
-                  <span className="normal-case text-white/20 ml-2">({shareSelectedImages.length} selected)</span>
-                </p>
-                <div className="flex gap-3 overflow-x-auto pb-2">
-                  {shareProject.images.map((img) => (
-                    <button
-                      key={img.id}
-                      onClick={() => toggleShareImage(img.imageUrl)}
-                      className={`relative flex-shrink-0 w-20 h-28 rounded-xl overflow-hidden border-2 transition-all ${
-                        shareSelectedImages.includes(img.imageUrl)
-                          ? "border-violet-500 scale-[1.02]"
-                          : "border-white/10 hover:border-violet-500/40"
-                      }`}
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={img.imageUrl} alt="" className="w-full h-full object-cover" />
-                      {shareSelectedImages.includes(img.imageUrl) && (
-                        <div className="absolute inset-0 bg-violet-500/20 flex items-center justify-center">
-                          <div className="w-5 h-5 rounded-full bg-violet-500 flex items-center justify-center">
-                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                              <path d="M2 5l2.5 2.5L8 3" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                            </svg>
-                          </div>
-                        </div>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Section 2 — AI Caption */}
-              <div className="px-5 py-4 border-b border-white/[0.07]">
-                <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-3">AI Caption</p>
-
-                {/* Platform pills */}
-                <div className="flex gap-2 flex-wrap mb-4">
-                  {SHARE_PLATFORMS.map((p) => (
-                    <button
-                      key={p.id}
-                      onClick={() => { setSharePlatform(p.id); setShareCaption(""); }}
-                      className={`px-3 py-1.5 rounded-full border text-xs font-medium transition-all ${
-                        sharePlatform === p.id
-                          ? "bg-violet-600/20 border-violet-500 text-violet-300"
-                          : "bg-white/[0.03] border-white/[0.07] text-white/50 hover:border-white/20"
-                      }`}
-                    >
-                      {p.name}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Generate button */}
+            {/* Tab bar */}
+            <div className="flex border-b border-white/[0.07] flex-shrink-0">
+              {(["social", "woocommerce"] as const).map((tab) => (
                 <button
-                  onClick={handleGenerateCaption}
-                  disabled={shareCaptionLoading}
-                  className={`w-full py-2.5 rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
-                    shareCaptionLoading
-                      ? "bg-white/[0.04] text-white/30 cursor-not-allowed"
-                      : "bg-violet-600 hover:bg-violet-500 text-white"
+                  key={tab}
+                  onClick={() => setShareTab(tab)}
+                  className={`flex-1 py-3 text-sm font-medium transition-all border-b-2 -mb-px ${
+                    shareTab === tab
+                      ? "text-violet-400 border-violet-500"
+                      : "text-white/40 border-transparent hover:text-white/70"
                   }`}
                 >
-                  {shareCaptionLoading ? (
-                    <>
-                      <span className="w-3.5 h-3.5 rounded-full border border-white/40 border-t-white animate-spin" />
-                      Generating…
-                    </>
-                  ) : (
-                    <>{shareCaption ? "✨ Regenerate" : "✨ Generate Caption"}</>
-                  )}
+                  {tab === "social" ? "Social" : "🛍️ WooCommerce"}
                 </button>
+              ))}
+            </div>
 
-                {/* Editable caption */}
-                {shareCaption && (
-                  <div className="mt-3 space-y-2">
-                    <textarea
-                      value={shareCaption}
-                      onChange={(e) => setShareCaption(e.target.value)}
-                      rows={6}
-                      className="w-full bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3 text-sm text-white/80 resize-none focus:outline-none focus:border-violet-500/50 transition-colors"
-                    />
+            {/* ── Social Tab ── */}
+            {shareTab === "social" && (
+              <div className="overflow-y-auto flex-1">
+
+                {/* Section 1 — Image selector */}
+                <div className="px-5 py-4 border-b border-white/[0.07]">
+                  <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-3">
+                    Select Images
+                    <span className="normal-case text-white/20 ml-2">({shareSelectedImages.length} selected)</span>
+                  </p>
+                  <div className="flex gap-3 overflow-x-auto pb-2">
+                    {shareProject.images.map((img) => (
+                      <button
+                        key={img.id}
+                        onClick={() => toggleShareImage(img.imageUrl)}
+                        className={`relative flex-shrink-0 w-20 h-28 rounded-xl overflow-hidden border-2 transition-all ${
+                          shareSelectedImages.includes(img.imageUrl)
+                            ? "border-violet-500 scale-[1.02]"
+                            : "border-white/10 hover:border-violet-500/40"
+                        }`}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={img.imageUrl} alt="" className="w-full h-full object-cover" />
+                        {shareSelectedImages.includes(img.imageUrl) && (
+                          <div className="absolute inset-0 bg-violet-500/20 flex items-center justify-center">
+                            <div className="w-5 h-5 rounded-full bg-violet-500 flex items-center justify-center">
+                              <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                                <path d="M2 5l2.5 2.5L8 3" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                              </svg>
+                            </div>
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Section 2 — AI Caption */}
+                <div className="px-5 py-4 border-b border-white/[0.07]">
+                  <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-3">AI Caption</p>
+
+                  {/* Platform pills */}
+                  <div className="flex gap-2 flex-wrap mb-4">
+                    {SHARE_PLATFORMS.map((p) => (
+                      <button
+                        key={p.id}
+                        onClick={() => { setSharePlatform(p.id); setShareCaption(""); }}
+                        className={`px-3 py-1.5 rounded-full border text-xs font-medium transition-all ${
+                          sharePlatform === p.id
+                            ? "bg-violet-600/20 border-violet-500 text-violet-300"
+                            : "bg-white/[0.03] border-white/[0.07] text-white/50 hover:border-white/20"
+                        }`}
+                      >
+                        {p.name}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Generate button */}
+                  <button
+                    onClick={handleGenerateCaption}
+                    disabled={shareCaptionLoading}
+                    className={`w-full py-2.5 rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+                      shareCaptionLoading
+                        ? "bg-white/[0.04] text-white/30 cursor-not-allowed"
+                        : "bg-violet-600 hover:bg-violet-500 text-white"
+                    }`}
+                  >
+                    {shareCaptionLoading ? (
+                      <>
+                        <span className="w-3.5 h-3.5 rounded-full border border-white/40 border-t-white animate-spin" />
+                        Generating…
+                      </>
+                    ) : (
+                      <>{shareCaption ? "✨ Regenerate" : "✨ Generate Caption"}</>
+                    )}
+                  </button>
+
+                  {/* Editable caption */}
+                  {shareCaption && (
+                    <div className="mt-3 space-y-2">
+                      <textarea
+                        value={shareCaption}
+                        onChange={(e) => setShareCaption(e.target.value)}
+                        rows={6}
+                        className="w-full bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3 text-sm text-white/80 resize-none focus:outline-none focus:border-violet-500/50 transition-colors"
+                      />
+                      <button
+                        onClick={handleCopyCaption}
+                        className={`w-full py-2 rounded-lg text-xs font-medium transition-colors ${
+                          shareCopied
+                            ? "bg-emerald-600/20 border border-emerald-500/30 text-emerald-300"
+                            : "bg-violet-600/15 border border-violet-500/25 text-violet-300 hover:bg-violet-600/25"
+                        }`}
+                      >
+                        {shareCopied ? "✓ Copied to clipboard!" : "Copy to Clipboard"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Section 3 — Share buttons */}
+                <div className="px-5 py-4">
+                  <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-3">Share to</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {SHARE_PLATFORMS.map((p) => (
+                      <button
+                        key={p.id}
+                        onClick={() => handleShareTo(p.id)}
+                        className="flex items-center gap-3 p-3 rounded-xl border border-white/[0.07] bg-white/[0.02] hover:bg-white/[0.05] hover:border-violet-500/30 transition-all text-left"
+                      >
+                        <span className="text-2xl leading-none flex-shrink-0">{p.icon}</span>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-white/80">{p.name}</p>
+                          <p className="text-[10px] text-white/30 mt-0.5 leading-tight">{p.hint}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+              </div>
+            )}
+
+            {/* ── WooCommerce Tab ── */}
+            {shareTab === "woocommerce" && (
+              <div className="overflow-y-auto flex-1 px-5 py-4 space-y-5">
+
+                {/* Loading connection state */}
+                {wcShareConnected === null && (
+                  <div className="flex items-center justify-center py-10">
+                    <span className="w-5 h-5 rounded-full border-2 border-violet-400 border-t-transparent animate-spin" />
+                  </div>
+                )}
+
+                {/* Not connected */}
+                {wcShareConnected === false && (
+                  <div className="text-center py-10 space-y-4">
+                    <div className="text-3xl">🛍️</div>
+                    <p className="text-white/60 text-sm">Connect WooCommerce in Settings → Integrations first</p>
                     <button
-                      onClick={handleCopyCaption}
-                      className={`w-full py-2 rounded-lg text-xs font-medium transition-colors ${
-                        shareCopied
-                          ? "bg-emerald-600/20 border border-emerald-500/30 text-emerald-300"
-                          : "bg-violet-600/15 border border-violet-500/25 text-violet-300 hover:bg-violet-600/25"
-                      }`}
+                      onClick={() => { setShareProject(null); setActiveNav("settings"); }}
+                      className="px-5 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-sm font-medium transition-colors"
                     >
-                      {shareCopied ? "✓ Copied to clipboard!" : "Copy to Clipboard"}
+                      Go to Settings
                     </button>
                   </div>
                 )}
-              </div>
 
-              {/* Section 3 — Share buttons */}
-              <div className="px-5 py-4">
-                <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-3">Share to</p>
-                <div className="grid grid-cols-2 gap-3">
-                  {SHARE_PLATFORMS.map((p) => (
-                    <button
-                      key={p.id}
-                      onClick={() => handleShareTo(p.id)}
-                      className="flex items-center gap-3 p-3 rounded-xl border border-white/[0.07] bg-white/[0.02] hover:bg-white/[0.05] hover:border-violet-500/30 transition-all text-left"
-                    >
-                      <span className="text-2xl leading-none flex-shrink-0">{p.icon}</span>
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-white/80">{p.name}</p>
-                        <p className="text-[10px] text-white/30 mt-0.5 leading-tight">{p.hint}</p>
+                {/* Connected — show form */}
+                {wcShareConnected === true && (
+                  <>
+
+                    {/* Success card */}
+                    {wcProductUrl && (
+                      <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 space-y-2">
+                        <p className="text-emerald-300 text-sm font-semibold">✓ Product published!</p>
+                        <p className="text-[11px] text-emerald-400/70 truncate">{wcProductUrl}</p>
+                        <a
+                          href={wcProductUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-medium hover:bg-emerald-500/30 transition-colors"
+                        >
+                          View Product ↗
+                        </a>
                       </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
+                    )}
 
-            </div>
+                    {/* ── Images ── */}
+                    <div>
+                      <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-2">Featured Image</p>
+                      <p className="text-[11px] text-white/30 mb-3">Click one image to set as featured</p>
+                      <div className="flex gap-3 overflow-x-auto pb-2">
+                        {shareProject.images.map((img) => (
+                          <button
+                            key={img.id}
+                            onClick={() => setWcFeaturedImage(img.imageUrl)}
+                            className={`relative flex-shrink-0 w-20 h-28 rounded-xl overflow-hidden border-2 transition-all ${
+                              wcFeaturedImage === img.imageUrl
+                                ? "border-violet-500 scale-[1.02]"
+                                : "border-white/10 hover:border-violet-500/40"
+                            }`}
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={img.imageUrl} alt="" className="w-full h-full object-cover" />
+                            {wcFeaturedImage === img.imageUrl && (
+                              <div className="absolute inset-0 bg-violet-500/20 flex items-center justify-center">
+                                <div className="w-5 h-5 rounded-full bg-violet-500 flex items-center justify-center">
+                                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                                    <path d="M2 5l2.5 2.5L8 3" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                  </svg>
+                                </div>
+                              </div>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-2">Gallery Images</p>
+                      <p className="text-[11px] text-white/30 mb-3">Check multiple images for the gallery</p>
+                      <div className="flex gap-3 overflow-x-auto pb-2">
+                        {shareProject.images.map((img) => (
+                          <button
+                            key={img.id}
+                            onClick={() =>
+                              setWcGalleryImages((prev) =>
+                                prev.includes(img.imageUrl)
+                                  ? prev.filter((u) => u !== img.imageUrl)
+                                  : [...prev, img.imageUrl]
+                              )
+                            }
+                            className={`relative flex-shrink-0 w-20 h-28 rounded-xl overflow-hidden border-2 transition-all ${
+                              wcGalleryImages.includes(img.imageUrl)
+                                ? "border-violet-500"
+                                : "border-white/10 hover:border-violet-500/40"
+                            }`}
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={img.imageUrl} alt="" className="w-full h-full object-cover" />
+                            {wcGalleryImages.includes(img.imageUrl) && (
+                              <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-md bg-violet-500 flex items-center justify-center">
+                                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                                  <path d="M2 5l2.5 2.5L8 3" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                </svg>
+                              </div>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* ── AI Content ── */}
+                    <button
+                      onClick={handleWcGenerateContent}
+                      disabled={wcGeneratingContent}
+                      className={`w-full py-2.5 rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+                        wcGeneratingContent
+                          ? "bg-white/[0.04] text-white/30 cursor-not-allowed"
+                          : "bg-violet-600 hover:bg-violet-500 text-white"
+                      }`}
+                    >
+                      {wcGeneratingContent ? (
+                        <>
+                          <span className="w-3.5 h-3.5 rounded-full border border-white/40 border-t-white animate-spin" />
+                          Generating…
+                        </>
+                      ) : "✨ Generate All with AI"}
+                    </button>
+
+                    {/* Product Title */}
+                    <div>
+                      <label className="text-xs text-white/40 mb-1.5 block">Product Title</label>
+                      <input
+                        type="text"
+                        value={wcTitle}
+                        onChange={(e) => setWcTitle(e.target.value)}
+                        placeholder="e.g. Floral Summer Dress"
+                        className="w-full bg-white/[0.03] border border-white/[0.07] rounded-lg px-3 py-2 text-sm outline-none focus:border-violet-500/50 placeholder:text-white/20 text-white"
+                      />
+                    </div>
+
+                    {/* Short Description */}
+                    <div>
+                      <label className="text-xs text-white/40 mb-1.5 block">Short Description</label>
+                      <textarea
+                        value={wcShortDesc}
+                        onChange={(e) => setWcShortDesc(e.target.value)}
+                        rows={2}
+                        placeholder="Brief product summary…"
+                        className="w-full bg-white/[0.03] border border-white/[0.07] rounded-lg px-3 py-2 text-sm outline-none focus:border-violet-500/50 placeholder:text-white/20 text-white resize-none"
+                      />
+                    </div>
+
+                    {/* Full Description */}
+                    <div>
+                      <label className="text-xs text-white/40 mb-1.5 block">Full Description</label>
+                      <textarea
+                        value={wcDescription}
+                        onChange={(e) => setWcDescription(e.target.value)}
+                        rows={5}
+                        placeholder="Detailed product description…"
+                        className="w-full bg-white/[0.03] border border-white/[0.07] rounded-lg px-3 py-2 text-sm outline-none focus:border-violet-500/50 placeholder:text-white/20 text-white resize-none"
+                      />
+                    </div>
+
+                    {/* Tags */}
+                    <div>
+                      <label className="text-xs text-white/40 mb-1.5 block">Tags</label>
+                      <input
+                        type="text"
+                        value={wcTags}
+                        onChange={(e) => setWcTags(e.target.value)}
+                        placeholder="fashion, party, dress"
+                        className="w-full bg-white/[0.03] border border-white/[0.07] rounded-lg px-3 py-2 text-sm outline-none focus:border-violet-500/50 placeholder:text-white/20 text-white"
+                      />
+                      <p className="text-[10px] text-white/20 mt-1">Comma separated</p>
+                    </div>
+
+                    {/* ── Pricing ── */}
+                    <div>
+                      <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-3">Pricing</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-xs text-white/40 mb-1.5 block">
+                            Regular Price $ <span className="text-red-400">*</span>
+                          </label>
+                          <input
+                            type="number"
+                            value={wcPrice}
+                            onChange={(e) => setWcPrice(e.target.value)}
+                            placeholder="0.00"
+                            min="0"
+                            step="0.01"
+                            className="w-full bg-white/[0.03] border border-white/[0.07] rounded-lg px-3 py-2 text-sm outline-none focus:border-violet-500/50 placeholder:text-white/20 text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-white/40 mb-1.5 block">Sale Price $</label>
+                          <input
+                            type="number"
+                            value={wcSalePrice}
+                            onChange={(e) => setWcSalePrice(e.target.value)}
+                            placeholder="Optional"
+                            min="0"
+                            step="0.01"
+                            className="w-full bg-white/[0.03] border border-white/[0.07] rounded-lg px-3 py-2 text-sm outline-none focus:border-violet-500/50 placeholder:text-white/20 text-white"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* ── Product Details ── */}
+                    <div>
+                      <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-3">Product Details</p>
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-xs text-white/40 mb-1.5 block">SKU</label>
+                          <input
+                            type="text"
+                            value={wcSku}
+                            onChange={(e) => setWcSku(e.target.value)}
+                            placeholder="Optional"
+                            className="w-full bg-white/[0.03] border border-white/[0.07] rounded-lg px-3 py-2 text-sm outline-none focus:border-violet-500/50 placeholder:text-white/20 text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-white/40 mb-1.5 block">Stock Quantity</label>
+                          <input
+                            type="number"
+                            value={wcStock}
+                            onChange={(e) => setWcStock(parseInt(e.target.value) || 100)}
+                            min="0"
+                            className="w-full bg-white/[0.03] border border-white/[0.07] rounded-lg px-3 py-2 text-sm outline-none focus:border-violet-500/50 text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-white/40 mb-1.5 block">Category</label>
+                          <select
+                            value={wcCategoryId ?? ""}
+                            onChange={(e) => setWcCategoryId(e.target.value ? parseInt(e.target.value) : null)}
+                            className="w-full bg-[#1c1c1c] border border-white/[0.07] rounded-lg px-3 py-2 text-sm outline-none focus:border-violet-500/50 text-white/70"
+                          >
+                            <option value="">Select category…</option>
+                            {wcCategories.map((cat) => (
+                              <option key={cat.id} value={cat.id}>{cat.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-xs text-white/40 mb-2 block">Status</label>
+                          <div className="flex gap-2">
+                            {(["draft", "publish"] as const).map((s) => (
+                              <button
+                                key={s}
+                                onClick={() => setWcStatus(s)}
+                                className={`px-5 py-1.5 rounded-full border text-xs font-medium transition-all ${
+                                  wcStatus === s
+                                    ? "bg-violet-600/20 border-violet-500 text-violet-300"
+                                    : "bg-white/[0.03] border-white/[0.07] text-white/50 hover:border-white/20"
+                                }`}
+                              >
+                                {s === "draft" ? "Draft" : "Publish"}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* ── Variations ── */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-xs text-violet-400 uppercase tracking-widest font-medium">Variations</p>
+                        <button
+                          onClick={() => setWcEnableVariations(!wcEnableVariations)}
+                          className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 ${
+                            wcEnableVariations ? "bg-violet-600" : "bg-white/[0.1]"
+                          }`}
+                        >
+                          <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${
+                            wcEnableVariations ? "left-5" : "left-0.5"
+                          }`} />
+                        </button>
+                      </div>
+                      <p className="text-[11px] text-white/30 mb-3">Add Size / Color Variations?</p>
+
+                      {wcEnableVariations && (
+                        <div className="space-y-3">
+                          {/* Attribute cards */}
+                          {wcAttributes.map((attr, idx) => (
+                            <div key={idx} className="p-3 rounded-xl border border-white/[0.07] bg-white/[0.02]">
+                              <div className="flex items-center justify-between mb-2">
+                                <p className="text-sm font-medium text-white/80">{attr.name}</p>
+                                <button
+                                  onClick={() => setWcAttributes((prev) => prev.filter((_, i) => i !== idx))}
+                                  className="text-white/30 hover:text-red-400 transition-colors"
+                                >
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                                  </svg>
+                                </button>
+                              </div>
+                              <div className="flex flex-wrap gap-1.5">
+                                {attr.values.map((v, vi) => (
+                                  <span key={vi} className="px-2.5 py-0.5 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-300 text-xs">
+                                    {v}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+
+                          {/* Add attribute button / inline form */}
+                          {!wcAttrFormVisible ? (
+                            <button
+                              onClick={() => setWcAttrFormVisible(true)}
+                              className="w-full py-2.5 rounded-xl border border-dashed border-white/[0.1] text-xs text-white/40 hover:border-violet-500/40 hover:text-violet-400 transition-all"
+                            >
+                              + Add Attribute
+                            </button>
+                          ) : (
+                            <div className="p-4 rounded-xl border border-violet-500/30 bg-violet-500/5 space-y-3">
+                              <div>
+                                <label className="text-xs text-white/40 mb-1.5 block">Attribute Name</label>
+                                <select
+                                  value={wcAttrName}
+                                  onChange={(e) => setWcAttrName(e.target.value)}
+                                  className="w-full bg-[#1c1c1c] border border-white/[0.07] rounded-lg px-3 py-2 text-sm outline-none focus:border-violet-500/50 text-white/70"
+                                >
+                                  <option>Size</option>
+                                  <option>Color</option>
+                                  <option>Material</option>
+                                  <option>Custom</option>
+                                </select>
+                              </div>
+                              {wcAttrName === "Custom" && (
+                                <div>
+                                  <label className="text-xs text-white/40 mb-1.5 block">Custom Name</label>
+                                  <input
+                                    type="text"
+                                    value={wcAttrCustomName}
+                                    onChange={(e) => setWcAttrCustomName(e.target.value)}
+                                    placeholder="e.g. Weight"
+                                    className="w-full bg-white/[0.03] border border-white/[0.07] rounded-lg px-3 py-2 text-sm outline-none focus:border-violet-500/50 placeholder:text-white/20 text-white"
+                                  />
+                                </div>
+                              )}
+                              <div>
+                                <label className="text-xs text-white/40 mb-1.5 block">Values</label>
+                                <div className="flex flex-wrap gap-1.5 mb-2">
+                                  {wcAttrValues.map((v, vi) => (
+                                    <span key={vi} className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-300 text-xs">
+                                      {v}
+                                      <button
+                                        onClick={() => setWcAttrValues((prev) => prev.filter((_, i) => i !== vi))}
+                                        className="text-violet-300/60 hover:text-red-400 leading-none"
+                                      >×</button>
+                                    </span>
+                                  ))}
+                                </div>
+                                <input
+                                  type="text"
+                                  value={wcAttrValueInput}
+                                  onChange={(e) => setWcAttrValueInput(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter" && wcAttrValueInput.trim()) {
+                                      e.preventDefault();
+                                      setWcAttrValues((prev) => [...prev, wcAttrValueInput.trim()]);
+                                      setWcAttrValueInput("");
+                                    }
+                                  }}
+                                  placeholder="Type value + Enter to add"
+                                  className="w-full bg-white/[0.03] border border-white/[0.07] rounded-lg px-3 py-2 text-sm outline-none focus:border-violet-500/50 placeholder:text-white/20 text-white"
+                                />
+                              </div>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => {
+                                    const name = wcAttrName === "Custom" ? (wcAttrCustomName.trim() || "Custom") : wcAttrName;
+                                    if (!wcAttrValues.length) return;
+                                    setWcAttributes((prev) => [...prev, { name, values: wcAttrValues }]);
+                                    setWcAttrFormVisible(false);
+                                    setWcAttrName("Size");
+                                    setWcAttrCustomName("");
+                                    setWcAttrValues([]);
+                                    setWcAttrValueInput("");
+                                  }}
+                                  disabled={wcAttrValues.length === 0}
+                                  className="flex-1 py-2 rounded-lg bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium transition-colors"
+                                >
+                                  Add
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setWcAttrFormVisible(false);
+                                    setWcAttrValues([]);
+                                    setWcAttrValueInput("");
+                                  }}
+                                  className="px-4 py-2 rounded-lg border border-white/[0.07] text-sm text-white/50 hover:text-white transition-colors"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Generate Combinations */}
+                          {wcAttributes.length > 0 && (
+                            <button
+                              onClick={generateVariationCombinations}
+                              className="w-full py-2.5 rounded-xl border border-white/[0.07] text-sm text-white/60 hover:text-white hover:border-violet-500/30 transition-colors"
+                            >
+                              Generate Combinations
+                            </button>
+                          )}
+
+                          {/* Variations table */}
+                          {wcVariations.length > 0 && (
+                            <div className="rounded-xl border border-white/[0.07] overflow-hidden">
+                              <table className="w-full text-xs">
+                                <thead>
+                                  <tr className="border-b border-white/[0.07] bg-white/[0.02]">
+                                    <th className="text-white/40 font-medium text-left px-3 py-2">Variation</th>
+                                    <th className="text-white/40 font-medium text-left px-3 py-2">Stock</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {wcVariations.map((v, vi) => (
+                                    <tr key={vi} className="border-b border-white/[0.04] last:border-0">
+                                      <td className="px-3 py-2 text-white/60">
+                                        {v.attributes.map((a) => a.option).join(" / ")}
+                                      </td>
+                                      <td className="px-3 py-2">
+                                        <input
+                                          type="number"
+                                          value={v.stockQuantity}
+                                          onChange={(e) =>
+                                            setWcVariations((prev) =>
+                                              prev.map((item, i) =>
+                                                i === vi ? { ...item, stockQuantity: e.target.value } : item
+                                              )
+                                            )
+                                          }
+                                          className="w-16 bg-white/[0.03] border border-white/[0.07] rounded px-2 py-1 text-white/70 outline-none focus:border-violet-500/50"
+                                          min="0"
+                                        />
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Error */}
+                    {wcPublishError && (
+                      <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30">
+                        <p className="text-red-400 text-xs">{wcPublishError}</p>
+                      </div>
+                    )}
+
+                    {/* Publish button */}
+                    {!wcProductUrl && (
+                      <button
+                        disabled={wcPublishing || !wcPrice || !wcFeaturedImage}
+                        onClick={handleWcPublish}
+                        className={`w-full py-3 rounded-xl text-sm font-medium transition-colors ${
+                          wcPublishing || !wcPrice || !wcFeaturedImage
+                            ? "bg-white/[0.04] text-white/20 cursor-not-allowed"
+                            : "bg-violet-600 hover:bg-violet-500 text-white"
+                        }`}
+                      >
+                        {wcPublishing
+                          ? (wcPublishStep || "Publishing…")
+                          : (!wcFeaturedImage
+                            ? "Select a featured image first"
+                            : !wcPrice
+                              ? "Enter a price to publish"
+                              : "Publish to WooCommerce →"
+                          )
+                        }
+                      </button>
+                    )}
+
+                    {/* Bottom spacing */}
+                    <div className="h-2" />
+
+                  </>
+                )}
+              </div>
+            )}
+
           </div>
         </div>
       )}

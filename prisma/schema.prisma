@@ -7,11 +7,15 @@ datasource db {
 }
 
 model User {
-  id        String    @id @default(cuid())
-  clerkId   String    @unique
-  email     String
-  createdAt DateTime  @default(now())
-  projects  Project[]
+  id                String    @id @default(cuid())
+  clerkId           String    @unique
+  email             String
+  createdAt         DateTime  @default(now())
+  projects          Project[]
+  wpSiteUrl         String?
+  wpConsumerKey     String?
+  wpConsumerSecret  String?
+  wpAppPassword     String?
 }
 
 model Project {
