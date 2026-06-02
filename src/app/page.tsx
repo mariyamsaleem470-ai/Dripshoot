@@ -376,9 +376,9 @@ export default function Home() {
           </span>
           <p className="text-white/25 text-xs">© 2025 DripShoots. All rights reserved.</p>
           <div className="flex gap-5 text-xs text-white/30">
-            <a href="#" className="hover:text-white transition-colors">Privacy</a>
-            <a href="#" className="hover:text-white transition-colors">Terms</a>
-            <a href="#" className="hover:text-white transition-colors">Contact</a>
+            <a href="/privacy" className="hover:text-white transition-colors">Privacy</a>
+            <a href="/terms" className="hover:text-white transition-colors">Terms</a>
+            <a href="mailto:legal@dripshoots.com" className="hover:text-white transition-colors">Contact</a>
           </div>
         </Container>
       </footer>

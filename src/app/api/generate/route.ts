@@ -165,6 +165,28 @@ export async function POST(request: Request) {
     allImages.push(...sideOutput);
   }
 
+  // Download CDN images and save locally
+  const generatedDir = path.join(process.cwd(), "public", "generated");
+  if (!fs.existsSync(generatedDir)) {
+    fs.mkdirSync(generatedDir, { recursive: true });
+  }
+
+  const localImages: string[] = [];
+  const timestamp = Date.now();
+  for (let i = 0; i < allImages.length; i++) {
+    const imageUrl = allImages[i];
+    try {
+      const imgRes = await fetch(imageUrl);
+      const buffer = Buffer.from(await imgRes.arrayBuffer());
+      const filename = `generated-${timestamp}-${i}.jpg`;
+      fs.writeFileSync(path.join(generatedDir, filename), buffer);
+      localImages.push(`/generated/${filename}`);
+    } catch (dlErr) {
+      console.error("[/api/generate] failed to download image:", imageUrl, dlErr);
+      localImages.push(imageUrl); // fall back to CDN URL on error
+    }
+  }
+
   // Save project to DB if user is authenticated
   try {
     const { userId } = await auth();
@@ -185,7 +207,7 @@ export async function POST(request: Request) {
           ethnicity,
           occasion,
           uploads: { create: [{ imageUrl: garmentImageUrl }] },
-          images: { create: allImages.map((imageUrl) => ({ imageUrl })) },
+          images: { create: localImages.map((imageUrl) => ({ imageUrl })) },
         },
       });
       console.log("[/api/generate] project saved to DB for user:", userId);
@@ -194,5 +216,5 @@ export async function POST(request: Request) {
     console.error("[/api/generate] failed to save project to DB:", dbErr);
   }
 
-  return Response.json({ images: allImages });
+  return Response.json({ images: localImages });
 }
