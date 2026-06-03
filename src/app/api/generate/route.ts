@@ -35,6 +35,9 @@ const CATEGORY_HINT: Record<string, string> = {
   hats:     "headwear photography, upper body",
 };
 
+const FABRIC_CATEGORY_HINT = (fabricStyle: string) =>
+  `wearing a ${fabricStyle} made from this fabric, South Asian fashion`;
+
 const QUALITY_MODE: Record<string, string> = {
   standard: "performance",
   high:     "balanced",
@@ -49,12 +52,16 @@ function buildPrompt(
   ageGroup: string,
   category: string,
   background: string,
+  fabricStyle?: string,
 ): string {
   const ageLabel = (AGE_LABEL[ageGroup] ?? `${ethnicity} ${gender} model`)
     .replace("{ethnicity}", ethnicity)
     .replace("{gender}", gender);
   const sideStr = SIDE_SUFFIX[side] ?? "";
-  const catHint = CATEGORY_HINT[category] ?? "fashion photography";
+  const catHint =
+    (category === "fabric-male" || category === "fabric-female") && fabricStyle
+      ? FABRIC_CATEGORY_HINT(fabricStyle)
+      : (CATEGORY_HINT[category] ?? "fashion photography");
   return `${ageLabel}, ${occasion} setting, ${background} background, ${catHint}${sideStr ? ", " + sideStr : ""}, professional fashion photography`;
 }
 
@@ -64,7 +71,7 @@ export async function POST(request: Request) {
 
   const {
     garmentImageUrl, gender, ethnicity, occasion,
-    ageGroup, category, background, sides, numImages, quality,
+    ageGroup, category, background, sides, numImages, quality, fabricStyle,
   } = body;
 
   if (!garmentImageUrl || !gender || !ethnicity || !occasion) {
@@ -101,7 +108,7 @@ export async function POST(request: Request) {
   const allImages: string[] = [];
 
   for (const side of sidesArr) {
-    const prompt = buildPrompt(side, gender, ethnicity, occasion, resolvedAgeGroup, resolvedCategory, resolvedBackground);
+    const prompt = buildPrompt(side, gender, ethnicity, occasion, resolvedAgeGroup, resolvedCategory, resolvedBackground, fabricStyle as string | undefined);
     const fashnPayload = {
       model_name: "product-to-model",
       inputs: {

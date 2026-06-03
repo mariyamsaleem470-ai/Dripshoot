@@ -8,7 +8,7 @@ import Container from "@/components/Container";
 
 type NavItem = "upload" | "projects" | "settings";
 type GenderType = "female" | "male";
-type ProductCategory = "clothing" | "shoes" | "jewelry" | "bags" | "hats";
+type ProductCategory = "clothing" | "shoes" | "jewelry" | "bags" | "hats" | "fabric-male" | "fabric-female";
 type AgeGroup = "adult" | "teen" | "kids-6-12" | "kids-2-5" | "toddler";
 type Side = "front" | "back" | "side-profile" | "side-view" | "top-down" | "detail-close-up" | "interior-shot";
 type Background = "Studio White" | "Outdoor Park" | "City Street" | "Modern Office" | "Minimal Grey" | "Luxury Interior" | "Beach" | "Rooftop";
@@ -56,12 +56,37 @@ const PROGRESS_MESSAGES = [
 ];
 
 const CATEGORIES: { id: ProductCategory; label: string; emoji: string }[] = [
-  { id: "clothing", label: "Clothing & Apparel",   emoji: "👕" },
-  { id: "shoes",    label: "Shoes & Footwear",     emoji: "👟" },
-  { id: "jewelry",  label: "Jewelry & Accessories",emoji: "💍" },
-  { id: "bags",     label: "Bags & Handbags",      emoji: "👜" },
-  { id: "hats",     label: "Hats & Headwear",      emoji: "🧢" },
+  { id: "clothing",      label: "Clothing & Apparel",    emoji: "👕" },
+  { id: "shoes",         label: "Shoes & Footwear",      emoji: "👟" },
+  { id: "jewelry",       label: "Jewelry & Accessories", emoji: "💍" },
+  { id: "bags",          label: "Bags & Handbags",       emoji: "👜" },
+  { id: "hats",          label: "Hats & Headwear",       emoji: "🧢" },
+  { id: "fabric-male",   label: "Fabric Male",           emoji: "🎽" },
+  { id: "fabric-female", label: "Fabric Female",         emoji: "👗" },
 ];
+
+const FABRIC_STYLES: Record<"fabric-male" | "fabric-female", { id: string; label: string; emoji: string }[]> = {
+  "fabric-male": [
+    { id: "Shalwar Kameez",      label: "Shalwar Kameez",      emoji: "🧣" },
+    { id: "Kameez Pajama",       label: "Kameez Pajama",       emoji: "👘" },
+    { id: "Italian Suit",        label: "Italian Suit",        emoji: "🤵" },
+    { id: "Blazer",              label: "Blazer",              emoji: "🧥" },
+    { id: "Sherwani",            label: "Sherwani",            emoji: "👔" },
+    { id: "Simple Shirt",        label: "Simple Shirt",        emoji: "👕" },
+    { id: "Waistcoat + Shalwar", label: "Waistcoat + Shalwar", emoji: "🎽" },
+    { id: "Kurta",               label: "Kurta",               emoji: "🥻" },
+  ],
+  "fabric-female": [
+    { id: "Shalwar Kameez", label: "Shalwar Kameez", emoji: "👗" },
+    { id: "Gharara",        label: "Gharara",         emoji: "🎀" },
+    { id: "Lehenga",        label: "Lehenga",         emoji: "💃" },
+    { id: "Anarkali",       label: "Anarkali",        emoji: "🌸" },
+    { id: "Maxi Dress",     label: "Maxi Dress",      emoji: "👗" },
+    { id: "Co-ord Set",     label: "Co-ord Set",      emoji: "🎽" },
+    { id: "Saree",          label: "Saree",           emoji: "🥻" },
+    { id: "Kurti",          label: "Kurti",           emoji: "🌺" },
+  ],
+};
 
 const AGE_GROUPS: { id: AgeGroup; label: string; range: string; desc: string }[] = [
   { id: "adult",     label: "Adult",   range: "18+",   desc: "Full range of styles and occasions" },
@@ -106,6 +131,16 @@ const SIDES_BY_CATEGORY: Record<ProductCategory, { id: Side; label: string }[]> 
     { id: "front",     label: "Front" },
     { id: "side-view", label: "Side View" },
   ],
+  "fabric-male": [
+    { id: "front",        label: "Front" },
+    { id: "back",         label: "Back" },
+    { id: "side-profile", label: "Side Profile" },
+  ],
+  "fabric-female": [
+    { id: "front",        label: "Front" },
+    { id: "back",         label: "Back" },
+    { id: "side-profile", label: "Side Profile" },
+  ],
 };
 
 const QUALITY_CREDITS: Record<Quality, number> = { standard: 1, high: 3, ultra: 5 };
@@ -113,15 +148,16 @@ const QUALITY_CREDITS: Record<Quality, number> = { standard: 1, high: 3, ultra: 
 const STEP_TITLES: Record<number, string> = {
   1:  "Upload your garment",
   2:  "Product category",
-  3:  "Age group",
-  4:  "Gender & Ethnicity",
-  5:  "Background",
-  6:  "Occasion",
-  7:  "Sides",
-  8:  "Images per side",
-  9:  "Quality",
-  10: "Add video reel?",
-  11: "Review & Generate",
+  3:  "Select style",
+  4:  "Age group",
+  5:  "Gender & Ethnicity",
+  6:  "Background",
+  7:  "Occasion",
+  8:  "Sides",
+  9:  "Images per side",
+  10: "Quality",
+  11: "Add video reel?",
+  12: "Review & Generate",
 };
 
 const NAV_ITEMS: { id: NavItem; label: string; icon: React.ReactNode }[] = [
@@ -338,6 +374,7 @@ export default function DashboardPage() {
   const [projectExportTab, setProjectExportTab] = useState<Exclude<ExportTab, "reels">>("instagram");
   const [wizardStep, setWizardStep] = useState(1);
   const [category, setCategory] = useState<ProductCategory | null>(null);
+  const [fabricStyle, setFabricStyle] = useState<string | null>(null);
   const [ageGroup, setAgeGroup] = useState<AgeGroup | null>(null);
   const [background, setBackground] = useState<Background | null>(null);
   const [sides, setSides] = useState<Side[]>(["front"]);
@@ -516,7 +553,7 @@ export default function DashboardPage() {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ garmentImageUrl: uploadedUrl, gender, ethnicity, occasion, ageGroup, category, background, sides, numImages, quality }),
+        body: JSON.stringify({ garmentImageUrl: uploadedUrl, gender, ethnicity, occasion, ageGroup, category, background, sides, numImages, quality, fabricStyle }),
       });
       const data = await res.json();
       setProgressPct(100);
@@ -565,6 +602,7 @@ export default function DashboardPage() {
     setProgressPct(0);
     setProgressMsg(0);
     setCategory(null);
+    setFabricStyle(null);
     setAgeGroup(null);
     setBackground(null);
     setSides(["front"]);
@@ -772,6 +810,7 @@ export default function DashboardPage() {
     setProgressMsg(0);
     setWizardStep(1);
     setCategory(null);
+    setFabricStyle(null);
     setAgeGroup(null);
     setBackground(null);
     setSides(["front"]);
@@ -1199,14 +1238,35 @@ export default function DashboardPage() {
     setReelRendering(false);
   };
 
+  const isFabricCategory = category === "fabric-male" || category === "fabric-female";
+  const totalSteps = isFabricCategory ? 12 : 11;
+  const displayStep = !isFabricCategory && wizardStep >= 4 ? wizardStep - 1 : wizardStep;
+
+  const handleNext = () => {
+    if (wizardStep === 2 && !isFabricCategory) {
+      setWizardStep(4);
+    } else {
+      setWizardStep((s) => s + 1);
+    }
+  };
+
+  const handleBack = () => {
+    if (wizardStep === 4 && !isFabricCategory) {
+      setWizardStep(2);
+    } else {
+      setWizardStep((s) => s - 1);
+    }
+  };
+
   const isStepValid = (() => {
     switch (wizardStep) {
       case 1: return !!uploadedUrl && !uploading;
       case 2: return !!category;
-      case 3: return !!ageGroup;
-      case 4: return !!gender && !!ethnicity;
-      case 5: return !!background;
-      case 6: return !!occasion;
+      case 3: return isFabricCategory ? !!fabricStyle : true;
+      case 4: return !!ageGroup;
+      case 5: return !!gender && !!ethnicity;
+      case 6: return !!background;
+      case 7: return !!occasion;
       default: return true;
     }
   })();
@@ -1303,17 +1363,17 @@ export default function DashboardPage() {
               {/* Step progress bar */}
               <div className="mb-8">
                 <div className="flex gap-1 mb-4">
-                  {Array.from({ length: 11 }, (_, i) => (
+                  {Array.from({ length: totalSteps }, (_, i) => (
                     <div
                       key={i}
                       className={`h-0.5 flex-1 rounded-full transition-all duration-300 ${
-                        i + 1 <= wizardStep ? "bg-violet-500" : "bg-white/[0.08]"
+                        i + 1 <= displayStep ? "bg-violet-500" : "bg-white/[0.08]"
                       }`}
                     />
                   ))}
                 </div>
                 <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-1">
-                  Step {wizardStep} of 11
+                  Step {displayStep} of {totalSteps}
                 </p>
                 <h1 className="text-2xl font-bold">{STEP_TITLES[wizardStep]}</h1>
               </div>
@@ -1398,8 +1458,25 @@ export default function DashboardPage() {
                 </div>
               )}
 
-              {/* ── Step 3: Age Group ── */}
-              {wizardStep === 3 && (
+              {/* ── Step 3: Fabric Style ── */}
+              {wizardStep === 3 && isFabricCategory && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {FABRIC_STYLES[category as "fabric-male" | "fabric-female"].map((style) => (
+                    <button key={style.id} onClick={() => setFabricStyle(style.id)}
+                      className={`flex flex-col items-center gap-3 p-5 rounded-2xl border transition-all ${
+                        fabricStyle === style.id
+                          ? "border-violet-500 bg-violet-500/10 text-violet-300"
+                          : "border-white/[0.07] bg-white/[0.03] text-white/60 hover:border-violet-500/40 hover:bg-white/[0.05]"
+                      }`}>
+                      <span className="text-3xl">{style.emoji}</span>
+                      <span className="text-sm font-medium text-center leading-tight">{style.label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* ── Step 4: Age Group ── */}
+              {wizardStep === 4 && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {AGE_GROUPS.map((ag) => (
                     <button key={ag.id} onClick={() => setAgeGroup(ag.id)}
@@ -1424,8 +1501,8 @@ export default function DashboardPage() {
                 </div>
               )}
 
-              {/* ── Step 4: Gender + Ethnicity ── */}
-              {wizardStep === 4 && (
+              {/* ── Step 5: Gender + Ethnicity ── */}
+              {wizardStep === 5 && (
                 <div className="space-y-6">
                   <div>
                     <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-3">Gender</p>
@@ -1466,8 +1543,8 @@ export default function DashboardPage() {
                 </div>
               )}
 
-              {/* ── Step 5: Background ── */}
-              {wizardStep === 5 && (
+              {/* ── Step 6: Background ── */}
+              {wizardStep === 6 && (
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   {BACKGROUNDS.map((bg) => (
                     <button key={bg.id} onClick={() => setBackground(bg.id)}
@@ -1485,8 +1562,8 @@ export default function DashboardPage() {
                 </div>
               )}
 
-              {/* ── Step 6: Occasion ── */}
-              {wizardStep === 6 && (
+              {/* ── Step 7: Occasion ── */}
+              {wizardStep === 7 && (
                 <div className="flex flex-wrap gap-2">
                   {OCCASIONS.map((occ) => (
                     <button key={occ} onClick={() => setOccasion(occ)}
@@ -1501,8 +1578,8 @@ export default function DashboardPage() {
                 </div>
               )}
 
-              {/* ── Step 7: Sides ── */}
-              {wizardStep === 7 && category && (
+              {/* ── Step 8: Sides ── */}
+              {wizardStep === 8 && category && (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {SIDES_BY_CATEGORY[category].map((side) => {
                     const isFront = side.id === "front";
@@ -1540,8 +1617,8 @@ export default function DashboardPage() {
                 </div>
               )}
 
-              {/* ── Step 8: Number of images per side ── */}
-              {wizardStep === 8 && (
+              {/* ── Step 9: Number of images per side ── */}
+              {wizardStep === 9 && (
                 <div>
                   <div className="flex gap-2 mb-4">
                     {([1, 2, 3, 4] as const).map((n) => (
@@ -1565,8 +1642,8 @@ export default function DashboardPage() {
                 </div>
               )}
 
-              {/* ── Step 9: Quality ── */}
-              {wizardStep === 9 && (
+              {/* ── Step 10: Quality ── */}
+              {wizardStep === 10 && (
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   {(["standard", "high", "ultra"] as Quality[]).map((q) => {
                     const meta = {
@@ -1597,8 +1674,8 @@ export default function DashboardPage() {
                 </div>
               )}
 
-              {/* ── Step 10: Video reel ── */}
-              {wizardStep === 10 && (
+              {/* ── Step 11: Video reel ── */}
+              {wizardStep === 11 && (
                 <div className="grid grid-cols-2 gap-3">
                   {([true, false] as const).map((val) => (
                     <button key={String(val)} onClick={() => setAddVideo(val)}
@@ -1618,12 +1695,13 @@ export default function DashboardPage() {
                 </div>
               )}
 
-              {/* ── Step 11: Summary ── */}
-              {wizardStep === 11 && (
+              {/* ── Step 12: Summary ── */}
+              {wizardStep === 12 && (
                 <div className="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-6 space-y-3">
                   {(
                     [
                       ["Category",    category ?? "—"],
+                      ...(isFabricCategory && fabricStyle ? [["Style", fabricStyle]] : []),
                       ["Age Group",   ageGroup  ?? "—"],
                       ["Gender",      gender    ?? "—"],
                       ["Ethnicity",   ethnicity ?? "—"],
@@ -1662,16 +1740,16 @@ export default function DashboardPage() {
               <div className="flex gap-3 mt-8">
                 {wizardStep > 1 && (
                   <button
-                    onClick={() => setWizardStep((s) => s - 1)}
+                    onClick={handleBack}
                     className="px-5 py-3 rounded-xl border border-white/[0.07] text-sm text-white/60 hover:text-white hover:border-white/20 transition-colors"
                   >
                     ← Back
                   </button>
                 )}
-                {wizardStep < 11 ? (
+                {wizardStep < 12 ? (
                   <button
                     disabled={!isStepValid}
-                    onClick={() => setWizardStep((s) => s + 1)}
+                    onClick={handleNext}
                     className={`flex-1 py-3 rounded-xl text-sm font-medium transition-colors ${
                       isStepValid
                         ? "bg-violet-600 hover:bg-violet-500 text-white"
