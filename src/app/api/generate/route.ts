@@ -85,46 +85,6 @@ async function uploadToCloudinary(imageUrl: string): Promise<string> {
   return result.secure_url;
 }
 
-async function generateWithReplicate(garmentImageUrl: string, prompt: string, category: string): Promise<string[]> {
-  const prediction = await fetch("https://api.replicate.com/v1/predictions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.REPLICATE_API_TOKEN}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      version: "906425dbca90663ff5427624839572cc56ea7d380343d13e2a4c4b09d3f0c30f",
-      input: {
-        human_img: "https://images.pexels.com/photos/1040945/pexels-photo-1040945.jpeg?w=768",
-        garm_img: garmentImageUrl,
-        garment_des: prompt,
-        category: category === "shoes" ? "lower_body" : category === "bags" ? "upper_body" : "upper_body",
-        is_checked: true,
-        denoise_steps: 30,
-        seed: Math.floor(Math.random() * 1000),
-      },
-    }),
-  });
-
-  const predData = await prediction.json();
-  const predId = predData.id;
-
-  let generatedUrls: string[] = [];
-  for (let i = 0; i < 40; i++) {
-    await new Promise((r) => setTimeout(r, 3000));
-    const poll = await fetch(`https://api.replicate.com/v1/predictions/${predId}`, {
-      headers: { Authorization: `Bearer ${process.env.REPLICATE_API_TOKEN}` },
-    });
-    const result = await poll.json();
-    if (result.status === "succeeded") {
-      generatedUrls = [result.output];
-      break;
-    }
-    if (result.status === "failed") throw new Error("Replicate failed: " + result.error);
-  }
-  return generatedUrls;
-}
-
 async function generateWithPhotta(garmentImageUrl: string, productType: string): Promise<string[]> {
   const res = await fetch("https://ai.photta.app/api/v1/tryon/apparel", {
     method: "POST",
@@ -264,15 +224,7 @@ export async function POST(request: Request) {
 
   const apiKey = process.env.FASHN_API_KEY ?? "";
 
-  // Lazily upload garment to Cloudinary once for Replicate/Photta paths
-  let garmentPublicUrl: string | null = null;
-  async function getGarmentPublicUrl(): Promise<string> {
-    if (!garmentPublicUrl) {
-      garmentPublicUrl = await uploadToCloudinary(garmentFilePath);
-      console.log("[/api/generate] garment uploaded to Cloudinary:", garmentPublicUrl);
-    }
-    return garmentPublicUrl;
-  }
+  if (!apiKey) return Response.json({ error: "FASHN_API_KEY not configured" }, { status: 500 });
 
   const allImages: string[] = [];
 
@@ -287,20 +239,8 @@ export async function POST(request: Request) {
     let generatedUrls: string[] = [];
 
     try {
-      if (resolvedQuality === "ultra") {
-        const productType =
-          resolvedCategory === "clothing" ? "top"
-          : resolvedCategory === "shoes" ? "bottom"
-          : "dress";
-        generatedUrls = await generateWithPhotta(await getGarmentPublicUrl(), productType);
-      } else if (resolvedQuality === "standard") {
-        generatedUrls = await generateWithReplicate(await getGarmentPublicUrl(), prompt, resolvedCategory);
-      } else {
-        // high (default) → Fashn.ai
-        if (!apiKey) return Response.json({ error: "FASHN_API_KEY not configured" }, { status: 500 });
-        const qualityMode = QUALITY_MODE[resolvedQuality] ?? "balanced";
-        generatedUrls = await generateWithFashn(base64Image, prompt, nImages, qualityMode, apiKey);
-      }
+      const qualityMode = QUALITY_MODE[resolvedQuality] ?? "balanced";
+      generatedUrls = await generateWithFashn(base64Image, prompt, nImages, qualityMode, apiKey);
     } catch (genErr) {
       console.error(`[/api/generate] generation error for side="${side}":`, genErr);
       return Response.json({ error: String(genErr) }, { status: 500 });
