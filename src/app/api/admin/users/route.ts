@@ -69,6 +69,13 @@ export async function PATCH(request: Request) {
       where: { id: userId },
       data: { credits: { increment: n } },
     });
+  } else if (action === "reset") {
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { creditsLimit: true } });
+    if (!user) return Response.json({ error: "User not found" }, { status: 404 });
+    await prisma.user.update({
+      where: { id: userId },
+      data: { credits: user.creditsLimit },
+    });
   } else {
     return Response.json({ error: "Unknown action" }, { status: 400 });
   }

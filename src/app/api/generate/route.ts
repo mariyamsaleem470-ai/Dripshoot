@@ -3,8 +3,6 @@ import path from "path";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { v2 as cloudinary } from "cloudinary";
-import Replicate from "replicate";
-
 export const runtime = "nodejs";
 
 // ─── Provider setup ──────────────────────────────────────────────────────────
@@ -14,8 +12,6 @@ cloudinary.config({
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
-
-const replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN });
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -89,20 +85,44 @@ async function uploadToCloudinary(imageUrl: string): Promise<string> {
   return result.secure_url;
 }
 
-async function generateWithReplicate(garmentImageUrl: string, prompt: string): Promise<string[]> {
-  const output = await replicate.run("cuuupid/idm-vton", {
-    input: {
-      human_img: "https://images.unsplash.com/photo-1619367997523-7d2f0ec59a09?w=768",
-      garm_img: garmentImageUrl,
-      garment_des: prompt,
-      category: "upper_body",
-      is_checked: true,
-      is_checked_crop: false,
-      denoise_steps: 30,
-      seed: 42,
+async function generateWithReplicate(garmentImageUrl: string, prompt: string, category: string): Promise<string[]> {
+  const prediction = await fetch("https://api.replicate.com/v1/predictions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.REPLICATE_API_TOKEN}`,
+      "Content-Type": "application/json",
     },
-  }) as string[];
-  return output;
+    body: JSON.stringify({
+      version: "906425dbca90663ff5427624839572cc56ea7d380343d13e2a4c4b09d3f0c30f",
+      input: {
+        human_img: "https://images.pexels.com/photos/1040945/pexels-photo-1040945.jpeg?w=768",
+        garm_img: garmentImageUrl,
+        garment_des: prompt,
+        category: category === "shoes" ? "lower_body" : category === "bags" ? "upper_body" : "upper_body",
+        is_checked: true,
+        denoise_steps: 30,
+        seed: Math.floor(Math.random() * 1000),
+      },
+    }),
+  });
+
+  const predData = await prediction.json();
+  const predId = predData.id;
+
+  let generatedUrls: string[] = [];
+  for (let i = 0; i < 40; i++) {
+    await new Promise((r) => setTimeout(r, 3000));
+    const poll = await fetch(`https://api.replicate.com/v1/predictions/${predId}`, {
+      headers: { Authorization: `Bearer ${process.env.REPLICATE_API_TOKEN}` },
+    });
+    const result = await poll.json();
+    if (result.status === "succeeded") {
+      generatedUrls = [result.output];
+      break;
+    }
+    if (result.status === "failed") throw new Error("Replicate failed: " + result.error);
+  }
+  return generatedUrls;
 }
 
 async function generateWithPhotta(garmentImageUrl: string, productType: string): Promise<string[]> {
@@ -274,7 +294,7 @@ export async function POST(request: Request) {
           : "dress";
         generatedUrls = await generateWithPhotta(await getGarmentPublicUrl(), productType);
       } else if (resolvedQuality === "standard") {
-        generatedUrls = await generateWithReplicate(await getGarmentPublicUrl(), prompt);
+        generatedUrls = await generateWithReplicate(await getGarmentPublicUrl(), prompt, resolvedCategory);
       } else {
         // high (default) → Fashn.ai
         if (!apiKey) return Response.json({ error: "FASHN_API_KEY not configured" }, { status: 500 });

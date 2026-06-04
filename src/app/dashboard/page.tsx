@@ -157,7 +157,6 @@ const STEP_TITLES: Record<number, string> = {
   9:  "Images per side",
   10: "Quality",
   11: "Add video reel?",
-  12: "Review & Generate",
 };
 
 const NAV_ITEMS: { id: NavItem; label: string; icon: React.ReactNode }[] = [
@@ -1243,8 +1242,28 @@ export default function DashboardPage() {
     setReelRendering(false);
   };
 
+  const handleDownloadAllResults = async () => {
+    if (!results) return;
+    const JSZip = (await import("jszip")).default;
+    const zip = new JSZip();
+    await Promise.all(
+      results.map(async (url, i) => {
+        const res = await fetch(url);
+        const blob = await res.blob();
+        zip.file(`dripshoots-${i + 1}.jpg`, blob);
+      })
+    );
+    const content = await zip.generateAsync({ type: "blob" });
+    const url = URL.createObjectURL(content);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "dripshoots-results.zip";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const isFabricCategory = category === "fabric-male" || category === "fabric-female";
-  const totalSteps = isFabricCategory ? 12 : 11;
+  const totalSteps = isFabricCategory ? 11 : 10;
   const displayStep = !isFabricCategory && wizardStep >= 4 ? wizardStep - 1 : wizardStep;
 
   const handleNext = () => {
@@ -1723,47 +1742,6 @@ export default function DashboardPage() {
                 </div>
               )}
 
-              {/* ── Step 12: Summary ── */}
-              {wizardStep === 12 && (
-                <div className="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-6 space-y-3">
-                  {(
-                    [
-                      ["Category",    category ?? "—"],
-                      ...(isFabricCategory && fabricStyle ? [["Style", fabricStyle]] : []),
-                      ["Age Group",   ageGroup  ?? "—"],
-                      ["Gender",      gender    ?? "—"],
-                      ["Ethnicity",   ethnicity ?? "—"],
-                      ["Background",  background ?? "—"],
-                      ["Occasion",    occasion  ?? "—"],
-                      ["Sides",       sides.join(", ")],
-                      ["Images/side", String(numImages)],
-                      ["Quality",     `${quality} (${QUALITY_CREDITS[quality]}cr each)`],
-                    ] as [string, string][]
-                  ).map(([label, value]) => (
-                    <div key={label} className="flex justify-between text-sm">
-                      <span className="text-white/40">{label}</span>
-                      <span className="text-white/80 font-medium capitalize">{value}</span>
-                    </div>
-                  ))}
-                  <div className="border-t border-white/[0.07] pt-3 space-y-1">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-white/40">Total images</span>
-                      <span className="text-white/80 font-medium">{numImages * sides.length}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-white/40">Total credits</span>
-                      <span className="text-violet-400 font-bold">{numImages * sides.length * QUALITY_CREDITS[quality]}</span>
-                    </div>
-                    {addVideo && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-white/40">Video reel</span>
-                        <span className="text-emerald-400 font-medium">Free ✓</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
               {/* ── Navigation buttons ── */}
               <div className="flex gap-3 mt-8">
                 {wizardStep > 1 && (
@@ -1774,7 +1752,7 @@ export default function DashboardPage() {
                     ← Back
                   </button>
                 )}
-                {wizardStep < 12 ? (
+                {wizardStep < 11 ? (
                   <button
                     disabled={!isStepValid}
                     onClick={handleNext}
@@ -1792,7 +1770,8 @@ export default function DashboardPage() {
                     onClick={handleGenerate}
                     className="flex-1 py-3 rounded-xl text-sm font-medium bg-violet-600 hover:bg-violet-500 text-white transition-colors disabled:bg-white/[0.04] disabled:text-white/20 disabled:cursor-not-allowed"
                   >
-                    Generate Shoots →
+                    <span>Generate ✨</span>
+                    <span className="ml-2 text-violet-300 text-xs font-normal">{numImages * sides.length * QUALITY_CREDITS[quality]} credits</span>
                   </button>
                 )}
               </div>
@@ -1863,8 +1842,22 @@ export default function DashboardPage() {
                 </button>
               </div>
 
-              {/* 2×3 image grid */}
+              {/* Original garment + generated grid */}
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-8">
+                {/* Original garment card */}
+                {uploadedUrl && (
+                  <div className="relative aspect-[4/5] rounded-2xl overflow-hidden bg-white/5">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={uploadedUrl}
+                      alt="Original Garment"
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-3 py-2">
+                      <p className="text-white text-[11px] font-medium">Original Garment</p>
+                    </div>
+                  </div>
+                )}
                 {results.map((url, i) => (
                   <div
                     key={i}
@@ -1878,17 +1871,38 @@ export default function DashboardPage() {
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
                     {/* Hover overlay */}
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors duration-300 flex items-center justify-center">
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors duration-300 flex items-center justify-center gap-2">
                       <span className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/15 backdrop-blur-sm border border-white/20 text-white text-xs px-3 py-1.5 rounded-lg">
                         View full size
                       </span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          downloadUrl(url, `dripshoots-${i + 1}.jpg`);
+                        }}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/15 backdrop-blur-sm border border-white/20 text-white p-1.5 rounded-lg hover:bg-white/25"
+                        title="Download image"
+                      >
+                        <DownloadIcon />
+                      </button>
                     </div>
                     {/* Badge */}
                     <div className="absolute top-2.5 left-2.5 bg-black/50 backdrop-blur-sm text-white/60 text-[10px] px-2 py-0.5 rounded-full">
-                      {i + 1} / 6
+                      {i + 1} / {results.length}
                     </div>
                   </div>
                 ))}
+              </div>
+
+              {/* Download All */}
+              <div className="mb-4 flex justify-end">
+                <button
+                  onClick={handleDownloadAllResults}
+                  className="flex items-center gap-2 bg-violet-600/20 hover:bg-violet-600/30 border border-violet-500/30 text-violet-300 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                >
+                  <DownloadIcon />
+                  Download All
+                </button>
               </div>
 
               {/* Export panel */}
