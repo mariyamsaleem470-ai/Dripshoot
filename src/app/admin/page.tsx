@@ -10,11 +10,15 @@ type AdminUser = {
   id: string;
   email: string;
   plan: string;
+  pkrPlan: string;
+  status: string;
   credits: number;
   creditsUsed: number;
   creditsLimit: number;
   projectsCount: number;
   createdAt: string;
+  approvedAt: string | null;
+  approvedBy: string | null;
 };
 
 type AdminStats = {
@@ -26,14 +30,26 @@ type AdminStats = {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const PLANS = ["free", "starter", "growth", "pro", "agency"] as const;
+const PKR_PLANS = ["free_trial", "starter", "growth", "pro"] as const;
 
-const PLAN_BADGE: Record<string, string> = {
-  free:    "bg-white/10 text-white/50",
-  starter: "bg-blue-500/15 text-blue-400 border border-blue-500/20",
-  growth:  "bg-green-500/15 text-green-400 border border-green-500/20",
-  pro:     "bg-violet-500/15 text-violet-400 border border-violet-500/20",
-  agency:  "bg-amber-500/15 text-amber-400 border border-amber-500/20",
+const PKR_PLAN_LABEL: Record<string, string> = {
+  free_trial: "Free Trial · PKR 0",
+  starter:    "Starter · PKR 999",
+  growth:     "Growth · PKR 2,499",
+  pro:        "Pro · PKR 4,999",
+};
+
+const PKR_PLAN_BADGE: Record<string, string> = {
+  free_trial: "bg-white/10 text-white/50",
+  starter:    "bg-blue-500/15 text-blue-400 border border-blue-500/20",
+  growth:     "bg-green-500/15 text-green-400 border border-green-500/20",
+  pro:        "bg-violet-500/15 text-violet-400 border border-violet-500/20",
+};
+
+const STATUS_BADGE: Record<string, string> = {
+  pending:  "bg-amber-500/15 text-amber-400 border border-amber-500/20",
+  active:   "bg-green-500/15 text-green-400 border border-green-500/20",
+  rejected: "bg-red-500/15 text-red-400 border border-red-500/20",
 };
 
 const PAGE_SIZE = 10;
@@ -89,8 +105,8 @@ export default function AdminPage() {
     }
   };
 
-  const handleSetPlan = (userId: string, plan: string) =>
-    callPatch(userId, { action: "setPlan", plan });
+  const handleSetPkrPlan = (userId: string, pkrPlan: string) =>
+    callPatch(userId, { action: "setPlan", pkrPlan });
 
   const handleAddCredits = (userId: string) => {
     const raw = prompt("How many credits to add?");
@@ -100,9 +116,13 @@ export default function AdminPage() {
     callPatch(userId, { action: "addCredits", amount });
   };
 
-  const handleReset = (userId: string) =>
-    callPatch(userId, { action: "reset" });
+  const handleApprove = (userId: string) =>
+    callPatch(userId, { action: "approve" });
 
+  const handleReject = (userId: string) =>
+    callPatch(userId, { action: "reject" });
+
+  const pending = users.filter((u) => u.status === "pending");
   const filtered = users.filter((u) =>
     u.email.toLowerCase().includes(search.toLowerCase())
   );
@@ -125,9 +145,7 @@ export default function AdminPage() {
         <div className="text-center space-y-3">
           <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="15" y1="9" x2="9" y2="15" />
-              <line x1="9" y1="9" x2="15" y2="15" />
+              <circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" />
             </svg>
           </div>
           <p className="text-xl font-bold text-red-400">Access Denied</p>
@@ -144,11 +162,7 @@ export default function AdminPage() {
       <div className="min-h-screen bg-[#0a0a0f] text-white flex items-center justify-center">
         <div className="flex gap-1.5">
           {[0, 1, 2].map((i) => (
-            <div
-              key={i}
-              className="w-2 h-2 rounded-full bg-violet-500/60 animate-pulse"
-              style={{ animationDelay: `${i * 200}ms` }}
-            />
+            <div key={i} className="w-2 h-2 rounded-full bg-violet-500/60 animate-pulse" style={{ animationDelay: `${i * 200}ms` }} />
           ))}
         </div>
       </div>
@@ -177,20 +191,20 @@ export default function AdminPage() {
                   <path d="M2 12L5 7L8 10L10 5L13 2" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </div>
-              <span className="text-[17px] font-semibold tracking-tight">
-                Drip<span className="text-violet-400">Shoots</span>
-              </span>
-              <span className="text-[11px] bg-violet-500/15 border border-violet-500/20 text-violet-400 px-2 py-0.5 rounded-full font-medium">
-                Admin
-              </span>
+              <span className="text-[17px] font-semibold tracking-tight">Drip<span className="text-violet-400">Shoots</span></span>
+              <span className="text-[11px] bg-violet-500/15 border border-violet-500/20 text-violet-400 px-2 py-0.5 rounded-full font-medium">Admin</span>
             </div>
-            <h1 className="text-2xl font-bold">Admin Panel</h1>
-            <p className="text-white/30 text-sm mt-0.5">Manage users, plans, and platform stats</p>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-bold">Admin Panel</h1>
+              {pending.length > 0 && (
+                <span className="text-xs bg-red-500/20 border border-red-500/30 text-red-400 px-2.5 py-0.5 rounded-full font-medium">
+                  {pending.length} pending approval{pending.length !== 1 ? "s" : ""}
+                </span>
+              )}
+            </div>
+            <p className="text-white/30 text-sm mt-0.5">mfaizan518@gmail.com · Manage users, plans, and platform stats</p>
           </div>
-          <Link
-            href="/dashboard"
-            className="flex-shrink-0 text-sm text-white/50 hover:text-white border border-white/10 hover:border-white/25 px-4 py-2 rounded-lg transition-colors"
-          >
+          <Link href="/dashboard" className="flex-shrink-0 text-sm text-white/50 hover:text-white border border-white/10 hover:border-white/25 px-4 py-2 rounded-lg transition-colors">
             ← Dashboard
           </Link>
         </div>
@@ -199,15 +213,12 @@ export default function AdminPage() {
         {stats && (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
             {([
-              { label: "Total Users",    value: stats.totalUsers.toLocaleString(),           icon: "👥" },
-              { label: "Total Projects", value: stats.totalProjects.toLocaleString(),        icon: "🗂️" },
-              { label: "Credits Used",   value: stats.totalCreditsUsed.toLocaleString(),     icon: "✨" },
+              { label: "Total Users",    value: stats.totalUsers.toLocaleString(),            icon: "👥" },
+              { label: "Total Projects", value: stats.totalProjects.toLocaleString(),         icon: "🗂️" },
+              { label: "Credits Used",   value: stats.totalCreditsUsed.toLocaleString(),      icon: "✨" },
               { label: "Est. Revenue",   value: `$${stats.revenueEstimate.toLocaleString()}`, icon: "💰" },
             ] as { label: string; value: string; icon: string }[]).map((card) => (
-              <div
-                key={card.label}
-                className="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-5 hover:border-white/[0.12] transition-colors"
-              >
+              <div key={card.label} className="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-5 hover:border-white/[0.12] transition-colors">
                 <p className="text-2xl mb-3 leading-none">{card.icon}</p>
                 <p className="text-2xl font-bold tracking-tight">{card.value}</p>
                 <p className="text-xs text-white/35 mt-1">{card.label}</p>
@@ -216,16 +227,69 @@ export default function AdminPage() {
           </div>
         )}
 
+        {/* ── Pending Approvals ── */}
+        {pending.length > 0 && (
+          <div className="mb-10">
+            <div className="flex items-center gap-3 mb-4">
+              <h2 className="text-base font-semibold">Pending Approvals</h2>
+              <span className="text-xs bg-red-500/20 border border-red-500/30 text-red-400 px-2.5 py-0.5 rounded-full font-medium">
+                {pending.length}
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {pending.map((user) => (
+                <div key={user.id} className="bg-white/[0.03] border border-amber-500/20 rounded-2xl p-4 flex flex-col gap-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-mono text-xs text-white/80 truncate" title={user.email}>{user.email}</p>
+                      <p className="text-[11px] text-white/30 mt-1">
+                        Signed up {new Date(user.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                      </p>
+                    </div>
+                    <span className={`flex-shrink-0 text-[10px] font-medium px-2 py-0.5 rounded-full ${STATUS_BADGE.pending}`}>
+                      pending
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleApprove(user.id)}
+                      disabled={!!updating[user.id]}
+                      className="flex-1 py-1.5 text-xs font-medium rounded-lg bg-green-500/15 hover:bg-green-500/25 border border-green-500/25 text-green-400 transition-colors disabled:opacity-40 flex items-center justify-center gap-1.5"
+                    >
+                      {updating[user.id] ? (
+                        <svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                        </svg>
+                      ) : "✓"} Approve
+                    </button>
+                    <button
+                      onClick={() => handleReject(user.id)}
+                      disabled={!!updating[user.id]}
+                      className="flex-1 py-1.5 text-xs font-medium rounded-lg bg-red-500/15 hover:bg-red-500/25 border border-red-500/25 text-red-400 transition-colors disabled:opacity-40 flex items-center justify-center gap-1.5"
+                    >
+                      {updating[user.id] ? (
+                        <svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                        </svg>
+                      ) : "✕"} Reject
+                    </button>
+                  </div>
+                  {success[user.id] && !updating[user.id] && (
+                    <p className="text-[11px] text-green-400 text-center">Done ✓</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Search + count */}
         <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
           <div className="relative">
-            <svg
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25 pointer-events-none"
-              width="14" height="14" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-            >
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25 pointer-events-none" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
             <input
               type="text"
@@ -235,22 +299,17 @@ export default function AdminPage() {
               className="w-72 bg-white/[0.04] border border-white/[0.08] rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-violet-500/50 transition-colors"
             />
           </div>
-          <p className="text-xs text-white/30">
-            {filtered.length} user{filtered.length !== 1 ? "s" : ""}
-          </p>
+          <p className="text-xs text-white/30">{filtered.length} user{filtered.length !== 1 ? "s" : ""}</p>
         </div>
 
-        {/* Table */}
+        {/* Users Table */}
         <div className="bg-white/[0.02] border border-white/[0.07] rounded-2xl overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm min-w-[820px]">
+            <table className="w-full text-sm min-w-[1100px]">
               <thead>
                 <tr className="border-b border-white/[0.07]">
-                  {["Email", "Plan", "Credits Left / Limit", "Used", "Projects", "Joined", "Actions"].map((h) => (
-                    <th
-                      key={h}
-                      className="text-left px-4 py-3 text-[11px] font-medium text-white/30 uppercase tracking-wider whitespace-nowrap"
-                    >
+                  {["Email", "Status", "Plan", "Credits Left / Limit", "Used", "Projects", "Joined", "Actions"].map((h) => (
+                    <th key={h} className="text-left px-4 py-3 text-[11px] font-medium text-white/30 uppercase tracking-wider whitespace-nowrap">
                       {h}
                     </th>
                   ))}
@@ -259,88 +318,77 @@ export default function AdminPage() {
               <tbody>
                 {paginated.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="text-center py-16 text-white/20 text-sm">
-                      No users found
-                    </td>
+                    <td colSpan={8} className="text-center py-16 text-white/20 text-sm">No users found</td>
                   </tr>
                 ) : (
                   paginated.map((user, i) => (
                     <tr
                       key={user.id}
-                      className={`border-b border-white/[0.04] last:border-0 hover:bg-violet-500/[0.04] transition-colors ${
-                        i % 2 !== 0 ? "bg-white/[0.012]" : ""
-                      }`}
+                      className={`border-b border-white/[0.04] last:border-0 hover:bg-violet-500/[0.04] transition-colors ${i % 2 !== 0 ? "bg-white/[0.012]" : ""}`}
                     >
                       {/* Email */}
                       <td className="px-4 py-3">
-                        <span
-                          className="font-mono text-xs text-white/70 block max-w-[180px] truncate"
-                          title={user.email}
-                        >
+                        <span className="font-mono text-xs text-white/70 block max-w-[180px] truncate" title={user.email}>
                           {user.email}
                         </span>
                       </td>
 
-                      {/* Plan badge */}
+                      {/* Status */}
                       <td className="px-4 py-3">
-                        <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full capitalize ${PLAN_BADGE[user.plan] ?? PLAN_BADGE.free}`}>
-                          {user.plan}
+                        <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full capitalize ${STATUS_BADGE[user.status] ?? "bg-white/10 text-white/40"}`}>
+                          {user.status}
+                        </span>
+                      </td>
+
+                      {/* PKR Plan */}
+                      <td className="px-4 py-3">
+                        <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap ${PKR_PLAN_BADGE[user.pkrPlan] ?? "bg-white/10 text-white/50"}`}>
+                          {user.pkrPlan ?? "—"}
                         </span>
                       </td>
 
                       {/* Credits progress */}
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-2 min-w-[120px]">
+                        <div className="flex items-center gap-2 min-w-[110px]">
                           <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
                             <div
                               className={`h-full rounded-full transition-all ${
-                                user.credits / user.creditsLimit > 0.5
-                                  ? "bg-violet-500"
-                                  : user.credits / user.creditsLimit > 0.2
-                                  ? "bg-amber-500"
-                                  : "bg-red-500"
+                                user.creditsLimit === 0 ? "bg-white/10"
+                                : user.credits / user.creditsLimit > 0.5 ? "bg-violet-500"
+                                : user.credits / user.creditsLimit > 0.2 ? "bg-amber-500"
+                                : "bg-red-500"
                               }`}
-                              style={{ width: `${Math.min(100, Math.round((user.credits / user.creditsLimit) * 100))}%` }}
+                              style={{ width: user.creditsLimit === 0 ? "0%" : `${Math.min(100, Math.round((user.credits / user.creditsLimit) * 100))}%` }}
                             />
                           </div>
-                          <span className="text-xs text-white/45 whitespace-nowrap tabular-nums">
-                            {user.credits}/{user.creditsLimit}
-                          </span>
+                          <span className="text-xs text-white/45 whitespace-nowrap tabular-nums">{user.credits}/{user.creditsLimit}</span>
                         </div>
                       </td>
 
                       {/* Used */}
-                      <td className="px-4 py-3 text-xs text-white/45 tabular-nums">
-                        {user.creditsUsed}
-                      </td>
+                      <td className="px-4 py-3 text-xs text-white/45 tabular-nums">{user.creditsUsed}</td>
 
                       {/* Projects */}
-                      <td className="px-4 py-3 text-xs text-white/45 tabular-nums">
-                        {user.projectsCount}
-                      </td>
+                      <td className="px-4 py-3 text-xs text-white/45 tabular-nums">{user.projectsCount}</td>
 
                       {/* Joined */}
                       <td className="px-4 py-3 text-xs text-white/35 whitespace-nowrap">
-                        {new Date(user.createdAt).toLocaleDateString("en-US", {
-                          month: "short", day: "numeric", year: "numeric",
-                        })}
+                        {new Date(user.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                       </td>
 
                       {/* Actions */}
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1.5 flex-wrap">
 
-                          {/* Plan dropdown */}
+                          {/* PKR Plan dropdown */}
                           <select
-                            value={user.plan}
-                            onChange={(e) => handleSetPlan(user.id, e.target.value)}
+                            value={user.pkrPlan ?? "free_trial"}
+                            onChange={(e) => handleSetPkrPlan(user.id, e.target.value)}
                             disabled={!!updating[user.id]}
                             className="bg-white/[0.05] border border-white/[0.08] rounded-lg text-xs text-white/65 px-2 py-1.5 focus:outline-none focus:border-violet-500/50 disabled:opacity-40 cursor-pointer hover:border-white/20 transition-colors"
                           >
-                            {PLANS.map((p) => (
-                              <option key={p} value={p} className="bg-[#111118] capitalize">
-                                {p}
-                              </option>
+                            {PKR_PLANS.map((p) => (
+                              <option key={p} value={p} className="bg-[#111118]">{PKR_PLAN_LABEL[p]}</option>
                             ))}
                           </select>
 
@@ -353,21 +401,31 @@ export default function AdminPage() {
                             + Credits
                           </button>
 
-                          {/* Reset */}
-                          <button
-                            onClick={() => handleReset(user.id)}
-                            disabled={!!updating[user.id]}
-                            className="text-xs bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-white/35 hover:text-white/65 px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-40"
-                          >
-                            Reset
-                          </button>
+                          {/* Approve */}
+                          {user.status !== "active" && (
+                            <button
+                              onClick={() => handleApprove(user.id)}
+                              disabled={!!updating[user.id]}
+                              className="text-xs bg-green-500/15 hover:bg-green-500/25 border border-green-500/20 text-green-400 px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-40"
+                            >
+                              Approve
+                            </button>
+                          )}
+
+                          {/* Reject */}
+                          {user.status !== "rejected" && (
+                            <button
+                              onClick={() => handleReject(user.id)}
+                              disabled={!!updating[user.id]}
+                              className="text-xs bg-red-500/15 hover:bg-red-500/25 border border-red-500/20 text-red-400 px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-40"
+                            >
+                              Reject
+                            </button>
+                          )}
 
                           {/* Spinner */}
                           {updating[user.id] && (
-                            <svg
-                              className="w-3.5 h-3.5 text-violet-400 animate-spin flex-shrink-0"
-                              viewBox="0 0 24 24" fill="none"
-                            >
+                            <svg className="w-3.5 h-3.5 text-violet-400 animate-spin flex-shrink-0" viewBox="0 0 24 24" fill="none">
                               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                             </svg>
@@ -375,12 +433,7 @@ export default function AdminPage() {
 
                           {/* Success checkmark */}
                           {success[user.id] && !updating[user.id] && (
-                            <svg
-                              className="w-3.5 h-3.5 text-green-400 flex-shrink-0"
-                              viewBox="0 0 24 24" fill="none"
-                              stroke="currentColor" strokeWidth="2.5"
-                              strokeLinecap="round" strokeLinejoin="round"
-                            >
+                            <svg className="w-3.5 h-3.5 text-green-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                               <path d="M20 6L9 17l-5-5" />
                             </svg>
                           )}
@@ -404,35 +457,23 @@ export default function AdminPage() {
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page === 1}
                   className="px-3 py-1.5 text-xs rounded-lg border border-white/[0.07] text-white/40 hover:text-white/70 hover:border-white/20 disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
-                >
-                  ← Prev
-                </button>
+                >← Prev</button>
                 {pageNumbers.map((n, i) =>
                   n === "…" ? (
-                    <span key={`ellipsis-${i}`} className="px-2 text-xs text-white/20 select-none">
-                      …
-                    </span>
+                    <span key={`ellipsis-${i}`} className="px-2 text-xs text-white/20 select-none">…</span>
                   ) : (
                     <button
                       key={n}
                       onClick={() => setPage(n as number)}
-                      className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
-                        page === n
-                          ? "bg-violet-600 text-white"
-                          : "border border-white/[0.07] text-white/40 hover:text-white/70 hover:border-white/20"
-                      }`}
-                    >
-                      {n}
-                    </button>
+                      className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${page === n ? "bg-violet-600 text-white" : "border border-white/[0.07] text-white/40 hover:text-white/70 hover:border-white/20"}`}
+                    >{n}</button>
                   )
                 )}
                 <button
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
                   className="px-3 py-1.5 text-xs rounded-lg border border-white/[0.07] text-white/40 hover:text-white/70 hover:border-white/20 disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
-                >
-                  Next →
-                </button>
+                >Next →</button>
               </div>
             </div>
           )}
