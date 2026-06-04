@@ -23,6 +23,10 @@ model User {
   creditsLimit     Int       @default(10)
   planExpiresAt    DateTime?
   stripeCustomerId String?
+  status           String    @default("pending")
+  approvedAt       DateTime?
+  approvedBy       String?
+  pkrPlan          String    @default("free")
 }
 
 model Project {
