@@ -4,6 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -16,6 +17,12 @@ model User {
   wpConsumerKey     String?
   wpConsumerSecret  String?
   wpAppPassword     String?
+  plan             String    @default("free")
+  credits          Int       @default(10)
+  creditsUsed      Int       @default(0)
+  creditsLimit     Int       @default(10)
+  planExpiresAt    DateTime?
+  stripeCustomerId String?
 }
 
 model Project {
