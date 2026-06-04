@@ -1,0 +1,56 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String    @id @default(cuid())
+  clerkId           String    @unique
+  email             String
+  createdAt         DateTime  @default(now())
+  projects          Project[]
+  wpSiteUrl         String?
+  wpConsumerKey     String?
+  wpConsumerSecret  String?
+  wpAppPassword     String?
+  plan             String    @default("free")
+  credits          Int       @default(10)
+  creditsUsed      Int       @default(0)
+  creditsLimit     Int       @default(10)
+  planExpiresAt    DateTime?
+  stripeCustomerId String?
+}
+
+model Project {
+  id        String           @id @default(cuid())
+  userId    String
+  name      String
+  status    String           @default("pending")
+  gender    String
+  ethnicity String
+  occasion  String
+  createdAt DateTime         @default(now())
+  user      User             @relation(fields: [userId], references: [id])
+  uploads   Upload[]
+  images    GeneratedImage[]
+}
+
+model Upload {
+  id        String   @id @default(cuid())
+  projectId String
+  imageUrl  String
+  createdAt DateTime @default(now())
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model GeneratedImage {
+  id        String   @id @default(cuid())
+  projectId String
+  imageUrl  String
+  createdAt DateTime @default(now())
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
