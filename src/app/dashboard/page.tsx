@@ -340,6 +340,13 @@ function renderPlaceholder(label: string, title: string) {
   );
 }
 
+function getImageUrl(url: string): string {
+  if (url.startsWith("/generated/") || url.startsWith("/uploads/")) {
+    return `http://153.92.209.231${url}`;
+  }
+  return url;
+}
+
 // ─── Dashboard Page ───────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
@@ -361,6 +368,7 @@ export default function DashboardPage() {
   const [activeExportTab, setActiveExportTab] = useState<ExportTab>("instagram");
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
+  const [projectsPage, setProjectsPage] = useState(1);
   const [expandedProjectId, setExpandedProjectId] = useState<string | null>(null);
   const [downloadingProjectId, setDownloadingProjectId] = useState<string | null>(null);
   const [editingProjectName, setEditingProjectName] = useState<string | null>(null);
@@ -450,7 +458,7 @@ export default function DashboardPage() {
     setProjectsLoading(true);
     fetch("/api/projects")
       .then((r) => r.json())
-      .then((d) => setProjects(d.projects ?? []))
+      .then((d) => { setProjects(d.projects ?? []); setProjectsPage(1); })
       .catch(() => setProjects([]))
       .finally(() => setProjectsLoading(false));
   }, [activeNav]);
@@ -576,7 +584,7 @@ export default function DashboardPage() {
       const zip = new JSZip();
       await Promise.all(
         project.images.map(async (img, i) => {
-          const res = await fetch(img.imageUrl);
+          const res = await fetch(getImageUrl(img.imageUrl));
           const blob = await res.blob();
           zip.file(`dripshoots-${i + 1}.jpg`, blob);
         })
@@ -2592,7 +2600,12 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {projects.map((project) => {
+                  {(() => {
+                    const PROJECTS_PER_PAGE = 6;
+                    const totalPages = Math.ceil(projects.length / PROJECTS_PER_PAGE);
+                    const paginatedProjects = projects.slice((projectsPage - 1) * PROJECTS_PER_PAGE, projectsPage * PROJECTS_PER_PAGE);
+                    return (<>
+                  {paginatedProjects.map((project) => {
                     const isExpanded = expandedProjectId === project.id;
                     const originalImage = project.uploads[0]?.imageUrl;
                     const date = new Date(project.createdAt).toLocaleDateString("en-US", {
@@ -2610,7 +2623,7 @@ export default function DashboardPage() {
                           <div className="w-20 h-28 flex-shrink-0 rounded-xl overflow-hidden bg-white/[0.05]">
                             {originalImage && (
                               <img
-                                src={originalImage}
+                                src={getImageUrl(originalImage)}
                                 alt="Garment"
                                 className="w-full h-full object-cover"
                               />
@@ -2646,7 +2659,7 @@ export default function DashboardPage() {
                                   className="w-10 h-14 rounded-lg overflow-hidden bg-white/[0.05] flex-shrink-0"
                                 >
                                   <img
-                                    src={img.imageUrl}
+                                    src={getImageUrl(img.imageUrl)}
                                     alt={`Generated ${i + 1}`}
                                     className="w-full h-full object-cover"
                                   />
@@ -2703,14 +2716,14 @@ export default function DashboardPage() {
                                   className="relative aspect-[3/4] rounded-xl overflow-hidden bg-white/[0.05] group"
                                 >
                                   <img
-                                    src={img.imageUrl}
+                                    src={getImageUrl(img.imageUrl)}
                                     alt={`Generated ${i + 1}`}
                                     className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                                   />
                                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-colors duration-300 flex items-center justify-center">
                                     <button
                                       onClick={async () => {
-                                        const res = await fetch(img.imageUrl);
+                                        const res = await fetch(getImageUrl(img.imageUrl));
                                         const blob = await res.blob();
                                         const url = URL.createObjectURL(blob);
                                         const a = document.createElement("a");
@@ -2759,7 +2772,7 @@ export default function DashboardPage() {
                                       <div className="relative h-36 overflow-hidden bg-black/20">
                                         {/* eslint-disable-next-line @next/next/no-img-element */}
                                         <img
-                                          src={project.images[i]?.imageUrl ?? project.images[0].imageUrl}
+                                          src={getImageUrl(project.images[i]?.imageUrl ?? project.images[0].imageUrl)}
                                           alt={fmt.label}
                                           className="w-full h-full object-cover"
                                         />
@@ -2774,7 +2787,7 @@ export default function DashboardPage() {
                                         </div>
                                         <button
                                           onClick={() => downloadCropped(
-                                            project.images[i]?.imageUrl ?? project.images[0].imageUrl,
+                                            getImageUrl(project.images[i]?.imageUrl ?? project.images[0].imageUrl),
                                             fmt.width,
                                             fmt.height,
                                             fmt.filename
@@ -2809,6 +2822,34 @@ export default function DashboardPage() {
                       </div>
                     );
                   })}
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-between px-2 py-6">
+                      <p className="text-sm text-white/40">
+                        Showing {Math.min((projectsPage - 1) * PROJECTS_PER_PAGE + 1, projects.length)}–{Math.min(projectsPage * PROJECTS_PER_PAGE, projects.length)} of {projects.length} projects
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setProjectsPage(p => Math.max(1, p - 1))}
+                          disabled={projectsPage === 1}
+                          className="px-3 py-1.5 text-sm rounded-lg border border-white/10 text-white/60 hover:text-white hover:border-white/30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                        >← Prev</button>
+                        {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                          <button
+                            key={page}
+                            onClick={() => setProjectsPage(page)}
+                            className={`w-8 h-8 text-sm rounded-lg transition-colors ${page === projectsPage ? "bg-violet-600 text-white" : "border border-white/10 text-white/60 hover:text-white"}`}
+                          >{page}</button>
+                        ))}
+                        <button
+                          onClick={() => setProjectsPage(p => Math.min(totalPages, p + 1))}
+                          disabled={projectsPage === totalPages || totalPages === 0}
+                          className="px-3 py-1.5 text-sm rounded-lg border border-white/10 text-white/60 hover:text-white hover:border-white/30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                        >Next →</button>
+                      </div>
+                    </div>
+                  )}
+                  </>);
+                  })()}
                 </div>
               )}
             </Container>
@@ -3055,7 +3096,7 @@ export default function DashboardPage() {
                         }`}
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={img.imageUrl} alt="" className="w-full h-full object-cover" />
+                        <img src={getImageUrl(img.imageUrl)} alt="" className="w-full h-full object-cover" />
                         {shareSelectedImages.includes(img.imageUrl) && (
                           <div className="absolute inset-0 bg-violet-500/20 flex items-center justify-center">
                             <div className="w-5 h-5 rounded-full bg-violet-500 flex items-center justify-center">
@@ -3218,7 +3259,7 @@ export default function DashboardPage() {
                             }`}
                           >
                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={img.imageUrl} alt="" className="w-full h-full object-cover" />
+                            <img src={getImageUrl(img.imageUrl)} alt="" className="w-full h-full object-cover" />
                             {wcFeaturedImage === img.imageUrl && (
                               <div className="absolute inset-0 bg-violet-500/20 flex items-center justify-center">
                                 <div className="w-5 h-5 rounded-full bg-violet-500 flex items-center justify-center">
@@ -3254,7 +3295,7 @@ export default function DashboardPage() {
                             }`}
                           >
                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={img.imageUrl} alt="" className="w-full h-full object-cover" />
+                            <img src={getImageUrl(img.imageUrl)} alt="" className="w-full h-full object-cover" />
                             {wcGalleryImages.includes(img.imageUrl) && (
                               <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-md bg-violet-500 flex items-center justify-center">
                                 <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
