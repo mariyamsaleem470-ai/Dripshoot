@@ -440,6 +440,11 @@ export default function DashboardPage() {
   const [wcAttrCustomName, setWcAttrCustomName]           = useState("");
   const [wcAttrValues, setWcAttrValues]                   = useState<string[]>([]);
   const [wcAttrValueInput, setWcAttrValueInput]           = useState("");
+  const [creditInfo, setCreditInfo] = useState<{ plan: string; credits: number; creditsUsed: number; creditsLimit: number; percentage: number } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/credits").then((r) => r.json()).then(setCreditInfo);
+  }, []);
 
   useEffect(() => {
     if (activeNav !== "projects") return;
@@ -1326,6 +1331,29 @@ export default function DashboardPage() {
             </button>
           ))}
         </nav>
+        {creditInfo && (
+          <div className="mx-3 mt-4 p-3 rounded-xl bg-white/[0.03] border border-white/[0.07]">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-white/50">✨ Credits</span>
+              <span className="text-xs text-violet-400 capitalize">{creditInfo.plan}</span>
+            </div>
+            <div className="text-sm font-medium text-white mb-1">
+              {creditInfo.credits} / {creditInfo.creditsLimit} remaining
+            </div>
+            <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden mb-2">
+              <div
+                className={`h-full rounded-full transition-all ${
+                  creditInfo.percentage > 80 ? "bg-red-500" :
+                  creditInfo.percentage > 60 ? "bg-amber-500" : "bg-violet-500"
+                }`}
+                style={{ width: `${Math.min(creditInfo.percentage, 100)}%` }}
+              />
+            </div>
+            <button className="w-full text-xs text-center text-violet-400 hover:text-violet-300 transition-colors">
+              Upgrade Plan →
+            </button>
+          </div>
+        )}
       </aside>
 
       {/* Main Content */}
