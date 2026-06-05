@@ -369,6 +369,8 @@ export default function DashboardPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
   const [projectsPage, setProjectsPage] = useState(1);
+  const [showCropTool, setShowCropTool] = useState(false);
+  const [cropSide, setCropSide] = useState<"front" | "back" | null>(null);
   const [expandedProjectId, setExpandedProjectId] = useState<string | null>(null);
   const [downloadingProjectId, setDownloadingProjectId] = useState<string | null>(null);
   const [editingProjectName, setEditingProjectName] = useState<string | null>(null);
@@ -527,13 +529,60 @@ export default function DashboardPage() {
     }
   };
 
+  const checkIfDoubleSided = (file: File) => {
+    const img = new Image();
+    img.onload = () => {
+      if (img.width > img.height * 1.5) {
+        setShowCropTool(true);
+      }
+      URL.revokeObjectURL(img.src);
+    };
+    img.src = URL.createObjectURL(file);
+  };
+
+  const handleCropSide = async (side: "front" | "back") => {
+    setCropSide(side);
+    setShowCropTool(false);
+
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = async () => {
+      const canvas = document.createElement("canvas");
+      const halfWidth = Math.floor(img.width / 2);
+      canvas.width = halfWidth;
+      canvas.height = img.height;
+      const ctx = canvas.getContext("2d")!;
+
+      if (side === "front") {
+        ctx.drawImage(img, 0, 0, halfWidth, img.height, 0, 0, halfWidth, img.height);
+      } else {
+        ctx.drawImage(img, halfWidth, 0, halfWidth, img.height, 0, 0, halfWidth, img.height);
+      }
+
+      canvas.toBlob(async (blob) => {
+        if (!blob) return;
+        const croppedFile = new File([blob], "cropped-garment.jpg", { type: "image/jpeg" });
+        const formData = new FormData();
+        formData.append("file", croppedFile);
+        setUploading(true);
+        const res = await fetch("/api/upload", { method: "POST", body: formData });
+        const data = await res.json();
+        setUploadedUrl(data.url);
+        setUploading(false);
+      }, "image/jpeg", 0.95);
+    };
+    img.src = uploadedUrl!;
+  };
+
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragging(false);
     const file = e.dataTransfer.files[0];
     if (file && file.type.startsWith("image/")) {
       setUploaded(URL.createObjectURL(file));
-      uploadToServer(file);
+      setShowCropTool(false);
+      setCropSide(null);
+      uploadToServer(file).then(() => checkIfDoubleSided(file));
     }
   };
 
@@ -541,7 +590,9 @@ export default function DashboardPage() {
     const file = e.target.files?.[0];
     if (file && file.type.startsWith("image/")) {
       setUploaded(URL.createObjectURL(file));
-      uploadToServer(file);
+      setShowCropTool(false);
+      setCropSide(null);
+      uploadToServer(file).then(() => checkIfDoubleSided(file));
     }
   };
 
@@ -854,6 +905,8 @@ export default function DashboardPage() {
     setAiVideoError(null);
     setAiVideoMotionPrompt("");
     setEditingProjectName(null);
+    setShowCropTool(false);
+    setCropSide(null);
     if (fileRef.current) fileRef.current.value = "";
     if (musicFileRef.current) musicFileRef.current.value = "";
   };
@@ -1493,6 +1546,30 @@ export default function DashboardPage() {
                       </button>
                     </div>
                   )}
+                  {showCropTool && (
+                    <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 mt-3">
+                      <p className="text-amber-400 text-sm font-medium mb-3">
+                        ⚠️ We detected both front and back sides in your image. Please select which side to use:
+                      </p>
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => handleCropSide("front")}
+                          className="flex-1 py-2 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-sm font-medium transition-colors"
+                        >
+                          Use Front Side
+                        </button>
+                        <button
+                          onClick={() => handleCropSide("back")}
+                          className="flex-1 py-2 rounded-lg border border-white/20 hover:bg-white/10 text-white text-sm font-medium transition-colors"
+                        >
+                          Use Back Side
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  <p className="text-xs text-zinc-500 mt-2 text-center">
+                    💡 Tip: Upload front view only for best results. If your image has both sides, we will detect it automatically.
+                  </p>
                 </div>
               )}
 
