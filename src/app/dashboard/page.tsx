@@ -65,7 +65,7 @@ const CATEGORIES: { id: ProductCategory; label: string; emoji: string }[] = [
   { id: "fabric-female", label: "Fabric Female",         emoji: "👗" },
 ];
 
-const FABRIC_STYLES: Record<"fabric-male" | "fabric-female", { id: string; label: string; emoji: string }[]> = {
+const FABRIC_STYLES: Record<"fabric-male" | "fabric-female", { id: string; label: string; emoji: string; desc?: string }[]> = {
   "fabric-male": [
     { id: "Shalwar Kameez",      label: "Shalwar Kameez",      emoji: "🧣" },
     { id: "Kameez Pajama",       label: "Kameez Pajama",       emoji: "👘" },
@@ -75,6 +75,12 @@ const FABRIC_STYLES: Record<"fabric-male" | "fabric-female", { id: string; label
     { id: "Simple Shirt",        label: "Simple Shirt",        emoji: "👕" },
     { id: "Waistcoat + Shalwar", label: "Waistcoat + Shalwar", emoji: "🎽" },
     { id: "Kurta",               label: "Kurta",               emoji: "🥻" },
+    { id: "italian-with-tie",    label: "Italian Suit with Tie",    emoji: "👔", desc: "Classic Italian cut, formal tie"  },
+    { id: "italian-without-tie", label: "Italian Suit without Tie", emoji: "🕴️", desc: "Smart casual, no tie"             },
+    { id: "double-button",       label: "Double Breasted",          emoji: "🎩", desc: "Double button formal suit"        },
+    { id: "prince-suit",         label: "Prince Coat",              emoji: "👑", desc: "Traditional prince coat style"   },
+    { id: "long-coat",           label: "Long Coat",                emoji: "🧥", desc: "Elegant long coat style"         },
+    { id: "italian-big-flaps",   label: "Italian Big Flaps",        emoji: "✨", desc: "Wide lapel Italian style"        },
   ],
   "fabric-female": [
     { id: "Shalwar Kameez", label: "Shalwar Kameez", emoji: "👗" },
