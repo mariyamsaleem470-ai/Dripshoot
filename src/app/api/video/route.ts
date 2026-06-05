@@ -100,6 +100,18 @@ export async function POST(request: NextRequest) {
           creditsUsed: { increment: creditCost },
         },
       });
+      const dbUser = await prisma.user.findUnique({ where: { clerkId: userId } });
+      if (dbUser) {
+        const latestProject = await prisma.project.findFirst({
+          where: { userId: dbUser.id },
+          orderBy: { createdAt: "desc" },
+        });
+        if (latestProject) {
+          await prisma.reel.create({
+            data: { projectId: latestProject.id, videoUrl: result.secure_url },
+          });
+        }
+      }
       return Response.json({ videoUrl: result.secure_url });
     }
     if (status === "failed") return Response.json({ error: error ?? "Generation failed" }, { status: 500 });

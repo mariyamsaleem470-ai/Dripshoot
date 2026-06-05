@@ -65,6 +65,7 @@ function buildPrompt(
   category: string,
   background: string,
   fabricStyle?: string,
+  suitStyle?: string,
 ): string {
   const ageLabel = (AGE_LABEL[ageGroup] ?? `${ethnicity} ${gender} model`)
     .replace("{ethnicity}", ethnicity)
@@ -74,7 +75,8 @@ function buildPrompt(
     (category === "fabric-male" || category === "fabric-female") && fabricStyle
       ? FABRIC_CATEGORY_HINT(fabricStyle)
       : (CATEGORY_HINT[category] ?? "fashion photography");
-  return `${ageLabel}, ${occasion} setting, ${background} background, ${catHint}${sideStr ? ", " + sideStr : ""}, professional fashion photography`;
+  const suitStr = suitStyle ? `, wearing a ${suitStyle.replace(/-/g, " ")} suit` : "";
+  return `${ageLabel}, ${occasion} setting, ${background} background, ${catHint}${suitStr}${sideStr ? ", " + sideStr : ""}, professional fashion photography`;
 }
 
 async function uploadToCloudinary(imageUrl: string): Promise<string> {
@@ -122,7 +124,13 @@ async function generateWithFashn(
   nImages: number,
   qualityMode: string,
   apiKey: string,
+  fabricStyle?: string,
 ): Promise<string[]> {
+  const categoryField =
+    (fabricStyle?.toLowerCase().includes("shalwar") || fabricStyle?.toLowerCase().includes("kameez"))
+      ? "full_body"
+      : "upper_body";
+
   const runRes = await fetch(`${FASHN_BASE}/run`, {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
@@ -134,6 +142,7 @@ async function generateWithFashn(
         num_images: nImages,
         output_format: "png",
         generation_mode: qualityMode,
+        category: categoryField,
       },
     }),
   });
@@ -183,7 +192,7 @@ export async function POST(request: Request) {
 
   const {
     garmentImageUrl, gender, ethnicity, occasion,
-    ageGroup, category, background, sides, numImages, quality, fabricStyle,
+    ageGroup, category, background, sides, numImages, quality, fabricStyle, suitStyle,
   } = body;
 
   if (!garmentImageUrl || !gender || !ethnicity || !occasion) {
@@ -233,14 +242,15 @@ export async function POST(request: Request) {
       side, gender, ethnicity, occasion,
       resolvedAgeGroup, resolvedCategory, resolvedBackground,
       fabricStyle as string | undefined,
+      suitStyle as string | undefined,
     );
     console.log(`[/api/generate] side="${side}" quality="${resolvedQuality}" prompt="${prompt}"`);
 
     let generatedUrls: string[] = [];
 
     try {
-      const qualityMode = QUALITY_MODE[resolvedQuality] ?? "balanced";
-      generatedUrls = await generateWithFashn(base64Image, prompt, nImages, qualityMode, apiKey);
+      const qualityMode = "performance";
+      generatedUrls = await generateWithFashn(base64Image, prompt, nImages, qualityMode, apiKey, fabricStyle as string | undefined);
     } catch (genErr) {
       console.error(`[/api/generate] generation error for side="${side}":`, genErr);
       return Response.json({ error: String(genErr) }, { status: 500 });

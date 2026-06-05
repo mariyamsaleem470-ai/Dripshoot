@@ -145,6 +145,15 @@ const SIDES_BY_CATEGORY: Record<ProductCategory, { id: Side; label: string }[]> 
 
 const QUALITY_CREDITS: Record<Quality, number> = { standard: 1, high: 3, ultra: 5 };
 
+const SUIT_STYLES: { id: string; label: string; icon: string; desc: string }[] = [
+  { id: "italian-with-tie",     label: "Italian Suit with Tie",    icon: "👔", desc: "Classic Italian cut, formal tie"  },
+  { id: "italian-without-tie",  label: "Italian Suit without Tie", icon: "🕴️", desc: "Smart casual, no tie"             },
+  { id: "double-button",        label: "Double Breasted",          icon: "🎩", desc: "Double button formal suit"        },
+  { id: "prince-suit",          label: "Prince Coat",              icon: "👑", desc: "Traditional prince coat style"   },
+  { id: "long-coat",            label: "Long Coat",                icon: "🧥", desc: "Elegant long coat style"         },
+  { id: "italian-big-flaps",    label: "Italian Big Flaps",        icon: "✨", desc: "Wide lapel Italian style"        },
+];
+
 const STEP_TITLES: Record<number, string> = {
   1:  "Upload your garment",
   2:  "Product category",
@@ -157,6 +166,7 @@ const STEP_TITLES: Record<number, string> = {
   9:  "Images per side",
   10: "Quality",
   11: "Add video reel?",
+  12: "Suit Style",
 };
 
 const NAV_ITEMS: { id: NavItem; label: string; icon: React.ReactNode }[] = [
@@ -388,7 +398,8 @@ export default function DashboardPage() {
   const [background, setBackground] = useState<Background | null>(null);
   const [sides, setSides] = useState<Side[]>(["front"]);
   const [numImages, setNumImages] = useState(1);
-  const [quality, setQuality] = useState<Quality>("high");
+  const [quality, setQuality] = useState("standard");
+  const [suitStyle, setSuitStyle] = useState("");
   const [addVideo, setAddVideo] = useState(false);
   const [selectedVideoImage, setSelectedVideoImage] = useState<string | null>(null);
   const [reelFormat, setReelFormat] = useState<ReelFormat>("9:16");
@@ -616,7 +627,7 @@ export default function DashboardPage() {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ garmentImageUrl: uploadedUrl, gender, ethnicity, occasion, ageGroup, category, background, sides, numImages, quality, fabricStyle }),
+        body: JSON.stringify({ garmentImageUrl: uploadedUrl, gender, ethnicity, occasion, ageGroup, category, background, sides, numImages, quality, fabricStyle, suitStyle }),
       });
       const data = await res.json();
       setProgressPct(100);
@@ -670,7 +681,8 @@ export default function DashboardPage() {
     setBackground(null);
     setSides(["front"]);
     setNumImages(1);
-    setQuality("high");
+    setQuality("standard");
+    setSuitStyle("");
     setAddVideo(false);
     setEditingProjectName(project.name);
     setWizardStep(2);
@@ -878,7 +890,8 @@ export default function DashboardPage() {
     setBackground(null);
     setSides(["front"]);
     setNumImages(1);
-    setQuality("high");
+    setQuality("standard");
+    setSuitStyle("");
     setAddVideo(false);
     setSelectedVideoImage(null);
     setReelFormat("9:16");
@@ -1324,12 +1337,29 @@ export default function DashboardPage() {
   };
 
   const isFabricCategory = category === "fabric-male" || category === "fabric-female";
-  const totalSteps = isFabricCategory ? 11 : 10;
-  const displayStep = !isFabricCategory && wizardStep >= 4 ? wizardStep - 1 : wizardStep;
+  const isSuitStyleApplicable = category === "clothing" && gender === "male";
+
+  const stepSequence = (() => {
+    const seq = [1, 2];
+    if (isFabricCategory) seq.push(3);
+    seq.push(4, 5, 6, 7);
+    if (isSuitStyleApplicable) seq.push(12);
+    seq.push(8, 9, 11);
+    return seq;
+  })();
+
+  const totalSteps = stepSequence.length;
+  const displayStep = Math.max(1, stepSequence.indexOf(wizardStep) + 1);
 
   const handleNext = () => {
     if (wizardStep === 2 && !isFabricCategory) {
       setWizardStep(4);
+    } else if (wizardStep === 7) {
+      setWizardStep(isSuitStyleApplicable ? 12 : 8);
+    } else if (wizardStep === 12) {
+      setWizardStep(8);
+    } else if (wizardStep === 9) {
+      setWizardStep(11);
     } else {
       setWizardStep((s) => s + 1);
     }
@@ -1338,6 +1368,12 @@ export default function DashboardPage() {
   const handleBack = () => {
     if (wizardStep === 4 && !isFabricCategory) {
       setWizardStep(2);
+    } else if (wizardStep === 8 && isSuitStyleApplicable) {
+      setWizardStep(12);
+    } else if (wizardStep === 12) {
+      setWizardStep(7);
+    } else if (wizardStep === 11) {
+      setWizardStep(9);
     } else {
       setWizardStep((s) => s - 1);
     }
@@ -1710,6 +1746,32 @@ export default function DashboardPage() {
                 </div>
               )}
 
+              {/* ── Step 12: Suit Style ── */}
+              {wizardStep === 12 && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {SUIT_STYLES.map((s) => (
+                      <button key={s.id} onClick={() => setSuitStyle(s.id)}
+                        className={`flex flex-col items-center gap-2 p-5 rounded-2xl border text-left transition-all ${
+                          suitStyle === s.id
+                            ? "border-violet-500 bg-violet-500/10"
+                            : "border-white/[0.07] bg-white/[0.03] hover:border-violet-500/40 hover:bg-white/[0.05]"
+                        }`}>
+                        <span className="text-3xl">{s.icon}</span>
+                        <p className={`text-sm font-semibold text-center leading-tight ${suitStyle === s.id ? "text-violet-300" : "text-white/80"}`}>{s.label}</p>
+                        <p className="text-[11px] text-white/40 text-center leading-relaxed">{s.desc}</p>
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => { setSuitStyle(""); setWizardStep(8); }}
+                    className="w-full py-2.5 rounded-xl border border-white/[0.07] text-xs text-white/40 hover:text-white/60 hover:border-white/20 transition-colors"
+                  >
+                    Skip this step
+                  </button>
+                </div>
+              )}
+
               {/* ── Step 8: Sides ── */}
               {wizardStep === 8 && category && (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -1774,38 +1836,6 @@ export default function DashboardPage() {
                 </div>
               )}
 
-              {/* ── Step 10: Quality ── */}
-              {wizardStep === 10 && (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {(["standard", "high", "ultra"] as Quality[]).map((q) => {
-                    const meta = {
-                      standard: { title: "Standard", desc: "Fast generation (~10s)\nGreat for previews",  credits: "1 credit / image" },
-                      high:     { title: "High",     desc: "Better detail & sharpness\nRecommended",       credits: "3 credits / image" },
-                      ultra:    { title: "Ultra",    desc: "Maximum resolution\nBest for print & ads",     credits: "5 credits / image" },
-                    }[q];
-                    return (
-                      <button key={q} onClick={() => setQuality(q)}
-                        className={`flex flex-col gap-2 p-5 rounded-2xl border text-left transition-all ${
-                          quality === q
-                            ? "border-violet-500 bg-violet-500/10"
-                            : "border-white/[0.07] bg-white/[0.03] hover:border-violet-500/40 hover:bg-white/[0.05]"
-                        }`}>
-                        <div className="flex items-center justify-between">
-                          <p className={`text-sm font-semibold ${quality === q ? "text-violet-300" : "text-white/80"}`}>{meta.title}</p>
-                          {q === "high" && (
-                            <span className="text-[9px] bg-violet-500/20 text-violet-300 px-1.5 py-0.5 rounded-full border border-violet-500/30">
-                              Recommended
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-[11px] text-white/40 leading-relaxed whitespace-pre-line">{meta.desc}</p>
-                        <p className={`text-[10px] font-medium ${quality === q ? "text-violet-400" : "text-white/30"}`}>{meta.credits}</p>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-
               {/* ── Step 11: Video reel ── */}
               {wizardStep === 11 && (
                 <div className="grid grid-cols-2 gap-3">
@@ -1856,7 +1886,7 @@ export default function DashboardPage() {
                     className="flex-1 py-3 rounded-xl text-sm font-medium bg-violet-600 hover:bg-violet-500 text-white transition-colors disabled:bg-white/[0.04] disabled:text-white/20 disabled:cursor-not-allowed"
                   >
                     <span>Generate ✨</span>
-                    <span className="ml-2 text-violet-300 text-xs font-normal">{numImages * sides.length * QUALITY_CREDITS[quality]} credits</span>
+                    <span className="ml-2 text-violet-300 text-xs font-normal">{numImages * sides.length} credits</span>
                   </button>
                 )}
               </div>
