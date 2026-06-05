@@ -48,6 +48,15 @@ const CATEGORY_HINT: Record<string, string> = {
 const FABRIC_CATEGORY_HINT = (fabricStyle: string) =>
   `wearing a ${fabricStyle} made from this fabric, South Asian fashion`;
 
+const SUIT_OPTIONS = [
+  "italian-with-tie",
+  "italian-without-tie",
+  "double-button",
+  "prince-suit",
+  "long-coat",
+  "italian-big-flaps",
+];
+
 const QUALITY_MODE: Record<string, string> = {
   standard: "performance",
   high:     "balanced",
@@ -67,6 +76,10 @@ function buildPrompt(
   fabricStyle?: string,
   suitStyle?: string,
 ): string {
+  if (fabricStyle && SUIT_OPTIONS.includes(fabricStyle)) {
+    return `wearing a ${fabricStyle.replace(/-/g, " ")} suit, ${ethnicity} ${gender} model, ${occasion} setting, ${background} background, professional fashion photography`;
+  }
+
   const ageLabel = (AGE_LABEL[ageGroup] ?? `${ethnicity} ${gender} model`)
     .replace("{ethnicity}", ethnicity)
     .replace("{gender}", gender);
