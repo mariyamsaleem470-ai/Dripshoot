@@ -1,4 +1,4 @@
-import fs from "fs";
+import fs, { existsSync } from "fs";
 import path from "path";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
@@ -66,12 +66,12 @@ const QUALITY_MODE: Record<string, string> = {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function buildPrompt(
+  category: string,
   side: string,
   gender: string,
   ethnicity: string,
   occasion: string,
   ageGroup: string,
-  category: string,
   background: string,
   fabricStyle?: string,
   suitStyle?: string,
@@ -89,7 +89,7 @@ function buildPrompt(
       ? FABRIC_CATEGORY_HINT(fabricStyle)
       : (CATEGORY_HINT[category] ?? "fashion photography");
   const suitStr = suitStyle ? `, wearing a ${suitStyle.replace(/-/g, " ")} suit` : "";
-  return `${ageLabel}, ${occasion} setting, ${background} background, ${catHint}${suitStr}${sideStr ? ", " + sideStr : ""}, professional fashion photography`;
+  return `${ageLabel}${suitStr}, ${occasion.toLowerCase()} setting, ${background.toLowerCase()} background, ${catHint}${sideStr ? ", " + sideStr : ""}, professional fashion photography, high quality`;
 }
 
 async function uploadToCloudinary(imageUrl: string): Promise<string> {
@@ -98,37 +98,6 @@ async function uploadToCloudinary(imageUrl: string): Promise<string> {
     resource_type: "image",
   });
   return result.secure_url;
-}
-
-async function generateWithPhotta(garmentImageUrl: string, productType: string): Promise<string[]> {
-  const res = await fetch("https://ai.photta.app/api/v1/tryon/apparel", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.PHOTTA_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      product_type: productType || "top",
-      product_images: [garmentImageUrl],
-      mannequin_id: "mnq_athena_ts",
-      pose_id: "pose_standing_front",
-      resolution: "2K",
-      aspect_ratio: "3:4",
-    }),
-  });
-  const data = await res.json();
-  const id = data.data.id;
-
-  for (let i = 0; i < 80; i++) {
-    await new Promise((r) => setTimeout(r, 3000));
-    const poll = await fetch(`https://ai.photta.app/api/v1/tryon/apparel/${id}`, {
-      headers: { Authorization: `Bearer ${process.env.PHOTTA_API_KEY}` },
-    });
-    const result = await poll.json();
-    if (result.data.status === "completed") return [result.data.output_url];
-    if (result.data.status === "failed") throw new Error("Photta generation failed");
-  }
-  throw new Error("Photta timeout");
 }
 
 async function generateWithFashn(
@@ -154,8 +123,7 @@ async function generateWithFashn(
         prompt,
         num_images: nImages,
         output_format: "png",
-        generation_mode: qualityMode,
-        category: categoryField,
+        generation_mode: "fast",
       },
     }),
   });
@@ -205,7 +173,7 @@ export async function POST(request: Request) {
 
   const {
     garmentImageUrl, gender, ethnicity, occasion,
-    ageGroup, category, background, sides, numImages, quality, fabricStyle, suitStyle,
+    ageGroup, category, background, sides, numImages, quality, fabricStyle, suitStyle, customPrompt,
   } = body;
 
   if (!garmentImageUrl || !gender || !ethnicity || !occasion) {
@@ -233,8 +201,15 @@ export async function POST(request: Request) {
   const resolvedCategory = (category as string) ?? "clothing";
   const resolvedBackground = (background as string) ?? "Studio White";
 
-  // Read garment file for Fashn.ai (base64) and for Cloudinary upload (local path)
+  // Read garment file for Fashn.ai (base64)
   const garmentFilePath = path.join(process.cwd(), "public", garmentImageUrl);
+  console.log("[/api/generate] reading garment file:", garmentFilePath);
+
+  if (!existsSync(garmentFilePath)) {
+    console.error("[/api/generate] file not found:", garmentFilePath);
+    return Response.json({ error: "Garment file not found. Please upload again." }, { status: 400 });
+  }
+
   let base64Image = "";
   try {
     const fileBuffer = fs.readFileSync(garmentFilePath);
@@ -251,9 +226,9 @@ export async function POST(request: Request) {
   const allImages: string[] = [];
 
   for (const side of sidesArr) {
-    const prompt = buildPrompt(
-      side, gender, ethnicity, occasion,
-      resolvedAgeGroup, resolvedCategory, resolvedBackground,
+    const prompt = (customPrompt as string | undefined) || buildPrompt(
+      resolvedCategory, side, gender, ethnicity, occasion,
+      resolvedAgeGroup, resolvedBackground,
       fabricStyle as string | undefined,
       suitStyle as string | undefined,
     );

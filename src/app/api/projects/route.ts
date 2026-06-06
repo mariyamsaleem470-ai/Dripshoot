@@ -12,7 +12,7 @@ export async function GET() {
 
   const projects = await prisma.project.findMany({
     where: { userId: user.id },
-    include: { uploads: true, images: true },
+    include: { uploads: true, images: true, reels: true },
     orderBy: { createdAt: "desc" },
   });
 
