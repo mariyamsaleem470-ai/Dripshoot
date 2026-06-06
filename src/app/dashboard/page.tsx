@@ -14,13 +14,14 @@ type Side = "front" | "back" | "side-profile" | "side-view" | "top-down" | "deta
 type Background = "Studio White" | "Outdoor Park" | "City Street" | "Modern Office" | "Minimal Grey" | "Luxury Interior" | "Beach" | "Rooftop";
 type Quality = "standard" | "high" | "ultra";
 type ReelFormat = "9:16" | "1:1" | "16:9";
-type ReelTemplate = "ken-burns" | "zoom-out" | "pan-left" | "pan-right" | "fade-slideshow" | "cinematic" | "drift-up" | "pulse";
+type ReelTemplate = "ken-burns" | "zoom-out" | "pan-left" | "pan-right" | "fade-slideshow" | "cinematic" | "drift-up" | "pulse" | "multi-motion";
 type MusicTrack = "track-1" | "track-2" | "custom";
-type ReelMode = "canvas" | "ai-video";
 type SharePlatform = "Instagram" | "Facebook" | "TikTok" | "Twitter";
+type ClothingType = "stitched" | "unstitched";
 
 type ProjectImage = { id: string; imageUrl: string };
 type ProjectUpload = { id: string; imageUrl: string };
+type ProjectReel = { id: string; videoUrl: string };
 type Project = {
   id: string;
   name: string;
@@ -31,6 +32,7 @@ type Project = {
   createdAt: string;
   uploads: ProjectUpload[];
   images: ProjectImage[];
+  reels: ProjectReel[];
 };
 
 const ETHNICITIES = [
@@ -160,19 +162,65 @@ const SUIT_STYLES: { id: string; label: string; icon: string; desc: string }[] =
   { id: "italian-big-flaps",    label: "Italian Big Flaps",        icon: "✨", desc: "Wide lapel Italian style"        },
 ];
 
+const STITCHED_STYLES_MALE = [
+  { id: "casual-shirt",        label: "Casual Shirt",       emoji: "👕" },
+  { id: "shalwar-kameez",      label: "Shalwar Kameez",     emoji: "🧣" },
+  { id: "italian-suit",        label: "Italian Suit",       emoji: "🤵" },
+  { id: "blazer",              label: "Blazer",             emoji: "🧥" },
+  { id: "sherwani",            label: "Sherwani",           emoji: "👘" },
+  { id: "kurta",               label: "Kurta",              emoji: "🥻" },
+  { id: "waistcoat-shalwar",   label: "Waistcoat + Shalwar",emoji: "🎽" },
+  { id: "double-breasted-suit",label: "Double Breasted",    emoji: "🎩" },
+  { id: "prince-coat",         label: "Prince Coat",        emoji: "👑" },
+  { id: "long-coat",           label: "Long Coat",          emoji: "🧥" },
+];
+
+const STITCHED_STYLES_FEMALE = [
+  { id: "kurti",        label: "Kurti",         emoji: "🌺" },
+  { id: "shalwar-kameez",label: "Shalwar Kameez",emoji: "👗" },
+  { id: "gharara",      label: "Gharara",       emoji: "🎀" },
+  { id: "lehenga",      label: "Lehenga",       emoji: "💃" },
+  { id: "anarkali",     label: "Anarkali",      emoji: "🌸" },
+  { id: "maxi-dress",   label: "Maxi Dress",    emoji: "👗" },
+  { id: "coord-set",    label: "Co-ord Set",    emoji: "🎽" },
+  { id: "saree",        label: "Saree",         emoji: "🥻" },
+];
+
+const UNSTITCHED_STYLES_MALE = [
+  { id: "shalwar-kameez-fabric",    label: "Shalwar Kameez",  emoji: "🧣" },
+  { id: "kurta-pajama-fabric",      label: "Kurta Pajama",    emoji: "👘" },
+  { id: "casual-shirt-fabric",      label: "Casual Shirt",    emoji: "👕" },
+  { id: "italian-suit-fabric",      label: "Italian Suit",    emoji: "🤵" },
+  { id: "double-breasted-fabric",   label: "Double Breasted", emoji: "🎩" },
+  { id: "prince-coat-fabric",       label: "Prince Coat",     emoji: "👑" },
+  { id: "long-coat-fabric",         label: "Long Coat",       emoji: "🧥" },
+  { id: "sherwani-fabric",          label: "Sherwani",        emoji: "👘" },
+  { id: "blazer-fabric",            label: "Blazer",          emoji: "🧥" },
+  { id: "waistcoat-fabric",         label: "Waistcoat + Shalwar", emoji: "🎽" },
+];
+
+const UNSTITCHED_STYLES_FEMALE = [
+  { id: "shalwar-kameez-fabric", label: "Shalwar Kameez", emoji: "👗" },
+  { id: "gharara-fabric",        label: "Gharara",        emoji: "🎀" },
+  { id: "lehenga-fabric",        label: "Lehenga",        emoji: "💃" },
+  { id: "anarkali-fabric",       label: "Anarkali",       emoji: "🌸" },
+  { id: "maxi-dress-fabric",     label: "Maxi Dress",     emoji: "👗" },
+  { id: "coord-set-fabric",      label: "Co-ord Set",     emoji: "🎽" },
+  { id: "saree-fabric",          label: "Saree",          emoji: "🥻" },
+  { id: "kurti-fabric",          label: "Kurti",          emoji: "🌺" },
+];
+
 const STEP_TITLES: Record<number, string> = {
   1:  "Upload your garment",
-  2:  "Product category",
-  3:  "Select style",
+  2:  "Stitched or Unstitched?",
+  3:  "Select Style",
   4:  "Age group",
   5:  "Gender & Ethnicity",
   6:  "Background",
   7:  "Occasion",
   8:  "Sides",
   9:  "Images per side",
-  10: "Quality",
-  11: "Add video reel?",
-  12: "Suit Style",
+  11: "Final Details",
 };
 
 const NAV_ITEMS: { id: NavItem; label: string; icon: React.ReactNode }[] = [
@@ -241,6 +289,7 @@ const REEL_TEMPLATES: { id: ReelTemplate; name: string; desc: string; icon: stri
   { id: "cinematic",      name: "Cinematic",      desc: "Letterbox + vignette + Ken Burns",  icon: "🎬" },
   { id: "drift-up",       name: "Drift Up",       desc: "Slow upward float + gentle zoom",   icon: "⬆"  },
   { id: "pulse",          name: "Pulse",          desc: "Rhythmic scale pulse, 2 beats",     icon: "💓" },
+  { id: "multi-motion",   name: "Multi Motion",   desc: "3 different motions from 1 image",   icon: "🎬" },
 ];
 
 const easeInOut = (t: number) => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
@@ -249,8 +298,6 @@ const MUSIC_TRACKS: { id: Exclude<MusicTrack, "custom">; label: string; src: str
   { id: "track-1", label: "Fashion Cinematic", src: "/music/track-1.mp3" },
   { id: "track-2", label: "Editorial Luxury",  src: "/music/track-2.mp3" },
 ];
-
-const AI_VIDEO_CREDITS: Record<"480p" | "720p" | "1080p", number> = { "480p": 1, "720p": 3, "1080p": 6 };
 
 const SHARE_PLATFORMS: { id: SharePlatform; name: string; icon: string; hint: string }[] = [
   { id: "Instagram", name: "Instagram", icon: "📸", hint: "Caption copied + open app" },
@@ -365,6 +412,45 @@ function getImageUrl(url: string): string {
 
 // ─── Dashboard Page ───────────────────────────────────────────────────────────
 
+function buildClientPrompt(
+  category: string,
+  gender: string,
+  ethnicity: string,
+  occasion: string,
+  ageGroup: string,
+  background: string,
+  fabricStyle?: string | null,
+  suitStyle?: string | null,
+  clothingType?: string,
+): string {
+  const AGE_LABEL: Record<string, string> = {
+    adult:       `${ethnicity} adult ${gender} model`,
+    teen:        `${ethnicity} teen ${gender} model, approximately 15 years old`,
+    "kids-6-12": `${ethnicity} child ${gender} model, approximately 9 years old`,
+    "kids-2-5":  `${ethnicity} young child ${gender} model, approximately 3 years old`,
+    toddler:     `${ethnicity} toddler model, approximately 1 year old`,
+  };
+
+  const ageLabel = AGE_LABEL[ageGroup] ?? `${ethnicity} ${gender} model`;
+  const bgLower  = background.toLowerCase();
+  const occLower = occasion.toLowerCase();
+
+  if (clothingType === "unstitched" && fabricStyle) {
+    const styleName = fabricStyle.replace(/-fabric$/, "").replace(/-/g, " ");
+    return `${ageLabel}, wearing a ${styleName} made from this fabric, ${occLower} setting, ${bgLower} background, South Asian fashion photography, professional fashion photography, high quality`;
+  }
+
+  if (clothingType === "stitched" && fabricStyle) {
+    const styleName = fabricStyle.replace(/-/g, " ");
+    return `${ageLabel}, wearing a ${styleName}, ${occLower} setting, ${bgLower} background, fashion clothing photography, professional fashion photography, high quality`;
+  }
+
+  // suitStyle fallback (legacy / unused path)
+  const suitStr = suitStyle ? `, wearing a ${suitStyle.replace(/-/g, " ")} suit` : "";
+  void category;
+  return `${ageLabel}${suitStr}, ${occLower} setting, ${bgLower} background, fashion clothing photography, professional fashion photography, high quality`;
+}
+
 export default function DashboardPage() {
   const [activeNav, setActiveNav] = useState<NavItem>("upload");
   const [dragging, setDragging] = useState(false);
@@ -388,6 +474,7 @@ export default function DashboardPage() {
   const [showCropTool, setShowCropTool] = useState(false);
   const [cropSide, setCropSide] = useState<"front" | "back" | null>(null);
   const [expandedProjectId, setExpandedProjectId] = useState<string | null>(null);
+  const [activeProjectTab, setActiveProjectTab] = useState<Record<string, string>>({});
   const [downloadingProjectId, setDownloadingProjectId] = useState<string | null>(null);
   const [editingProjectName, setEditingProjectName] = useState<string | null>(null);
   const [shareProject, setShareProject] = useState<Project | null>(null);
@@ -398,6 +485,8 @@ export default function DashboardPage() {
   const [shareCopied, setShareCopied] = useState(false);
   const [projectExportTab, setProjectExportTab] = useState<Exclude<ExportTab, "reels">>("instagram");
   const [wizardStep, setWizardStep] = useState(1);
+  const [clothingType, setClothingType] = useState<ClothingType | null>(null);
+  const [clothingStyle, setClothingStyle] = useState<string | null>(null);
   const [category, setCategory] = useState<ProductCategory | null>(null);
   const [fabricStyle, setFabricStyle] = useState<string | null>(null);
   const [ageGroup, setAgeGroup] = useState<AgeGroup | null>(null);
@@ -408,6 +497,7 @@ export default function DashboardPage() {
   const [suitStyle, setSuitStyle] = useState("");
   const [addVideo, setAddVideo] = useState(false);
   const [selectedVideoImage, setSelectedVideoImage] = useState<string | null>(null);
+  const [reelMode, setReelMode] = useState<"fashn" | "canvas">("fashn");
   const [reelFormat, setReelFormat] = useState<ReelFormat>("9:16");
   const [reelTemplate, setReelTemplate] = useState<ReelTemplate>("ken-burns");
   const [reelDuration, setReelDuration] = useState<5 | 10 | 15>(10);
@@ -418,15 +508,15 @@ export default function DashboardPage() {
   const [selectedMusicTrack, setSelectedMusicTrack] = useState<MusicTrack | null>(null);
   const [customMusicFile, setCustomMusicFile] = useState<File | null>(null);
   const [previewingTrack, setPreviewingTrack] = useState<string | null>(null);
-  const [reelMode, setReelMode] = useState<ReelMode>("canvas");
-  const [aiVideoImageUrl, setAiVideoImageUrl] = useState<string | null>(null);
-  const [aiVideoDuration, setAiVideoDuration] = useState<5 | 10>(5);
+  const [editablePrompt, setEditablePrompt] = useState("");
+  const [aiVideoImages, setAiVideoImages] = useState<string[]>([]);
+  const [aiVideoDuration] = useState<number>(10);
   const [aiVideoResolution, setAiVideoResolution] = useState<"480p" | "720p" | "1080p">("720p");
+  const [aiVideoMotionPrompt, setAiVideoMotionPrompt] = useState("");
   const [aiVideoGenerating, setAiVideoGenerating] = useState(false);
   const [aiVideoProgress, setAiVideoProgress] = useState(0);
-  const [aiVideoOutputUrl, setAiVideoOutputUrl] = useState<string | null>(null);
+  const [aiVideoOutputUrls, setAiVideoOutputUrls] = useState<string[]>([]);
   const [aiVideoError, setAiVideoError] = useState<string | null>(null);
-  const [aiVideoMotionPrompt, setAiVideoMotionPrompt] = useState("");
 
   // ── WooCommerce / Integrations state ──────────────────────────────────────
   const [activeIntegration, setActiveIntegration] = useState<string | null>(null);
@@ -512,6 +602,26 @@ export default function DashboardPage() {
       })
       .catch(() => setWcShareConnected(false));
   }, [shareTab, shareProject, wcShareConnected]);
+
+  useEffect(() => {
+    if (wizardStep === 11 && gender && ethnicity && occasion && ageGroup && background) {
+      setEditablePrompt(buildClientPrompt(
+        "clothing", gender, ethnicity, occasion, ageGroup, background,
+        clothingType === "unstitched" ? clothingStyle : null,
+        clothingType === "stitched" ? clothingStyle : null,
+        clothingType || "stitched",
+      ));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wizardStep]);
+
+  useEffect(() => {
+    if (reelTemplate === "multi-motion") setReelDuration(15);
+  }, [reelTemplate]);
+
+  useEffect(() => {
+    if (results?.length === 1) setReelTemplate("multi-motion");
+  }, [results]);
 
   useEffect(() => {
     if (!generating) return;
@@ -633,7 +743,7 @@ export default function DashboardPage() {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ garmentImageUrl: uploadedUrl, gender, ethnicity, occasion, ageGroup, category, background, sides, numImages, quality, fabricStyle, suitStyle }),
+        body: JSON.stringify({ garmentImageUrl: uploadedUrl, gender, ethnicity, occasion, ageGroup, category: "clothing", background, sides, numImages, quality: "standard", fabricStyle: clothingStyle, clothingType, customPrompt: editablePrompt || undefined }),
       });
       const data = await res.json();
       setProgressPct(100);
@@ -681,6 +791,8 @@ export default function DashboardPage() {
     setGenerating(false);
     setProgressPct(0);
     setProgressMsg(0);
+    setClothingType(null);
+    setClothingStyle(null);
     setCategory(null);
     setFabricStyle(null);
     setAgeGroup(null);
@@ -878,6 +990,42 @@ export default function DashboardPage() {
     setWcVariations(combos);
   };
 
+  const handleGenerateAiVideo = async () => {
+    if (!aiVideoImages.length) return;
+    setAiVideoGenerating(true);
+    setAiVideoProgress(0);
+    setAiVideoOutputUrls([]);
+    setAiVideoError(null);
+
+    const outputs: string[] = [];
+
+    for (let i = 0; i < aiVideoImages.length; i++) {
+      const imageUrl = aiVideoImages[i];
+      setAiVideoProgress(Math.round((i / aiVideoImages.length) * 90));
+      try {
+        const res = await fetch("/api/video", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            imageUrl,
+            duration: aiVideoDuration,
+            resolution: aiVideoResolution,
+            motionPrompt: aiVideoMotionPrompt.trim() || undefined,
+          }),
+        });
+        const data = await res.json();
+        if (data.videoUrl) outputs.push(data.videoUrl);
+        else if (data.error) setAiVideoError(data.error);
+      } catch (err) {
+        console.error("Video generation error:", err);
+      }
+    }
+
+    setAiVideoProgress(100);
+    setAiVideoOutputUrls(outputs);
+    setAiVideoGenerating(false);
+  };
+
   const handleReset = () => {
     setUploaded(null);
     setUploadedUrl(null);
@@ -890,6 +1038,8 @@ export default function DashboardPage() {
     setProgressPct(0);
     setProgressMsg(0);
     setWizardStep(1);
+    setClothingType(null);
+    setClothingStyle(null);
     setCategory(null);
     setFabricStyle(null);
     setAgeGroup(null);
@@ -914,18 +1064,16 @@ export default function DashboardPage() {
       previewAudioRef.current = null;
     }
     setPreviewingTrack(null);
-    setReelMode("canvas");
-    setAiVideoImageUrl(null);
-    setAiVideoDuration(5);
-    setAiVideoResolution("720p");
-    setAiVideoGenerating(false);
-    setAiVideoProgress(0);
-    setAiVideoOutputUrl(null);
-    setAiVideoError(null);
-    setAiVideoMotionPrompt("");
     setEditingProjectName(null);
     setShowCropTool(false);
     setCropSide(null);
+    setAiVideoImages([]);
+    setAiVideoOutputUrls([]);
+    setAiVideoProgress(0);
+    setAiVideoGenerating(false);
+    setAiVideoMotionPrompt("");
+    setAiVideoError(null);
+    setReelMode("fashn");
     if (fileRef.current) fileRef.current.value = "";
     if (musicFileRef.current) musicFileRef.current.value = "";
   };
@@ -954,121 +1102,6 @@ export default function DashboardPage() {
     if (selectedMusicTrack === "track-2") return "/music/track-2.mp3";
     if (selectedMusicTrack === "custom" && customMusicFile) return URL.createObjectURL(customMusicFile);
     return null;
-  };
-
-  const muxAiVideoWithAudio = async (videoUrl: string): Promise<string> => {
-    const musicSrc = getMusicSrc();
-    if (!musicSrc) return videoUrl;
-
-    let videoBlobUrl = videoUrl;
-    let shouldRevokeVideo = false;
-    try {
-      const blob = await fetch(videoUrl).then((r) => r.blob());
-      videoBlobUrl = URL.createObjectURL(blob);
-      shouldRevokeVideo = true;
-    } catch { /* fall through to direct url */ }
-
-    const video = document.createElement("video");
-    video.crossOrigin = "anonymous";
-    video.muted = true;
-    video.src = videoBlobUrl;
-    await new Promise<void>((res) => {
-      video.onloadedmetadata = () => res();
-      video.onerror = () => res();
-      setTimeout(res, 10000);
-    });
-
-    const W = video.videoWidth || 1280;
-    const H = video.videoHeight || 720;
-    const canvas = document.createElement("canvas");
-    canvas.width = W; canvas.height = H;
-    const ctx = canvas.getContext("2d")!;
-
-    const audioCtx = new AudioContext();
-    const dest = audioCtx.createMediaStreamDestination();
-    const musicAudio = new Audio();
-    musicAudio.crossOrigin = "anonymous";
-    musicAudio.loop = true;
-    musicAudio.src = musicSrc;
-    await new Promise<void>((res) => {
-      musicAudio.oncanplaythrough = () => res();
-      musicAudio.onerror = () => res();
-      setTimeout(res, 3000);
-    });
-    const source = audioCtx.createMediaElementSource(musicAudio);
-    source.connect(dest);
-
-    const canvasStream = canvas.captureStream(30);
-    const finalStream = new MediaStream([...canvasStream.getVideoTracks(), ...dest.stream.getAudioTracks()]);
-    const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus") ? "video/webm;codecs=vp9,opus" : "video/webm";
-    const chunks: Blob[] = [];
-    const recorder = new MediaRecorder(finalStream, { mimeType, videoBitsPerSecond: 5_000_000 });
-    recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
-
-    return new Promise((resolve) => {
-      recorder.onstop = () => {
-        musicAudio.pause(); musicAudio.src = "";
-        audioCtx.close();
-        if (shouldRevokeVideo) URL.revokeObjectURL(videoBlobUrl);
-        if (selectedMusicTrack === "custom") URL.revokeObjectURL(musicSrc);
-        resolve(URL.createObjectURL(new Blob(chunks, { type: "video/webm" })));
-      };
-      video.onended = () => recorder.stop();
-      const drawFrame = () => {
-        if (!video.paused && !video.ended) { ctx.drawImage(video, 0, 0, W, H); requestAnimationFrame(drawFrame); }
-      };
-      recorder.start(100);
-      musicAudio.play().catch(() => {});
-      video.play().then(drawFrame).catch(() => recorder.stop());
-    });
-  };
-
-  const handleGenerateAiVideo = async () => {
-    if (!aiVideoImageUrl) return;
-    stopPreview();
-    setAiVideoGenerating(true);
-    setAiVideoProgress(0);
-    setAiVideoOutputUrl(null);
-    setAiVideoError(null);
-
-    let prog = 0;
-    const timer = setInterval(() => {
-      prog = Math.min(prog + 1.5, 90);
-      setAiVideoProgress(Math.round(prog));
-    }, 1000);
-
-    try {
-      const res = await fetch("/api/video", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageUrl: aiVideoImageUrl, duration: aiVideoDuration, resolution: aiVideoResolution, motionPrompt: aiVideoMotionPrompt.trim() || undefined }),
-      });
-      const data = await res.json();
-      clearInterval(timer);
-
-      if (!res.ok || data.error) { setAiVideoError(data.error ?? "Generation failed"); return; }
-
-      setAiVideoProgress(100);
-      await new Promise((r) => setTimeout(r, 300));
-
-      let outputUrl: string;
-      if (selectedMusicTrack) {
-        outputUrl = await muxAiVideoWithAudio(data.videoUrl);
-      } else {
-        try {
-          const blob = await fetch(data.videoUrl).then((r) => r.blob());
-          outputUrl = URL.createObjectURL(blob);
-        } catch {
-          outputUrl = data.videoUrl;
-        }
-      }
-      setAiVideoOutputUrl(outputUrl);
-    } catch {
-      setAiVideoError("Request failed. Please try again.");
-    } finally {
-      clearInterval(timer);
-      setAiVideoGenerating(false);
-    }
   };
 
   const downloadUrl = (url: string, filename: string) => {
@@ -1126,7 +1159,9 @@ export default function DashboardPage() {
 
     const imageUrls = reelTemplate === "fade-slideshow"
       ? results
-      : [selectedVideoImage ?? results[0]];
+      : reelTemplate === "multi-motion"
+        ? [results[0]]
+        : [selectedVideoImage ?? results[0]];
 
     const imgs = await Promise.all(
       imageUrls.map((url) =>
@@ -1232,6 +1267,26 @@ export default function DashboardPage() {
         const scale = 1 + 0.05 * Math.sin(t * Math.PI * 4);
         const dw = W * scale, dh = H * scale;
         drawCovered(imgs[0], (W - dw) / 2, (H - dh) / 2, dw, dh);
+      } else if (reelTemplate === "multi-motion") {
+        const segment = Math.min(Math.floor(t * 3), 2);
+        const segT = easeInOut((t * 3) % 1);
+        const img = imgs[0];
+        if (segment === 0) {
+          const scale = 1 + 0.2 * segT;
+          const tx = -0.03 * segT * W;
+          const ty = -0.02 * segT * H;
+          const dw = W * scale, dh = H * scale;
+          drawCovered(img, (W - dw) / 2 + tx, (H - dh) / 2 + ty, dw, dh);
+        } else if (segment === 1) {
+          const scale = 1.3 - 0.3 * segT;
+          const dw = W * scale, dh = H * scale;
+          drawCovered(img, (W - dw) / 2, (H - dh) / 2, dw, dh);
+        } else {
+          const scale = 1.1 - 0.1 * segT;
+          const ty = (0.05 - 0.1 * segT) * H;
+          const dw = W * scale, dh = H * scale;
+          drawCovered(img, (W - dw) / 2, (H - dh) / 2 + ty, dw, dh);
+        }
       }
 
       // Vignette on all templates except cinematic (which draws it before letterbox)
@@ -1342,56 +1397,42 @@ export default function DashboardPage() {
     URL.revokeObjectURL(url);
   };
 
-  const isFabricCategory = category === "fabric-male" || category === "fabric-female";
-  const isSuitStyleApplicable = category === "clothing" && gender === "male";
-
-  const stepSequence = (() => {
-    const seq = [1, 2];
-    if (isFabricCategory) seq.push(3);
-    seq.push(4, 5, 6, 7);
-    if (isSuitStyleApplicable) seq.push(12);
-    seq.push(8, 9, 11);
-    return seq;
-  })();
+  const stepSequence = [1, 2, 4, 5, 3, 6, 7, 8, 9, 11];
 
   const totalSteps = stepSequence.length;
   const displayStep = Math.max(1, stepSequence.indexOf(wizardStep) + 1);
 
   const handleNext = () => {
-    if (wizardStep === 2 && !isFabricCategory) {
-      setWizardStep(4);
-    } else if (wizardStep === 7) {
-      setWizardStep(isSuitStyleApplicable ? 12 : 8);
-    } else if (wizardStep === 12) {
-      setWizardStep(8);
-    } else if (wizardStep === 9) {
-      setWizardStep(11);
-    } else {
-      setWizardStep((s) => s + 1);
-    }
+    if (wizardStep === 1)      setWizardStep(2);
+    else if (wizardStep === 2) setWizardStep(4);
+    else if (wizardStep === 4) setWizardStep(5);
+    else if (wizardStep === 5) setWizardStep(3);
+    else if (wizardStep === 3) setWizardStep(6);
+    else if (wizardStep === 6) setWizardStep(7);
+    else if (wizardStep === 7) setWizardStep(8);
+    else if (wizardStep === 8) setWizardStep(9);
+    else if (wizardStep === 9) setWizardStep(11);
   };
 
   const handleBack = () => {
-    if (wizardStep === 4 && !isFabricCategory) {
-      setWizardStep(2);
-    } else if (wizardStep === 8 && isSuitStyleApplicable) {
-      setWizardStep(12);
-    } else if (wizardStep === 12) {
-      setWizardStep(7);
-    } else if (wizardStep === 11) {
-      setWizardStep(9);
-    } else {
-      setWizardStep((s) => s - 1);
-    }
+    if (wizardStep === 2)       setWizardStep(1);
+    else if (wizardStep === 4)  setWizardStep(2);
+    else if (wizardStep === 5)  setWizardStep(4);
+    else if (wizardStep === 3)  setWizardStep(5);
+    else if (wizardStep === 6)  setWizardStep(3);
+    else if (wizardStep === 7)  setWizardStep(6);
+    else if (wizardStep === 8)  setWizardStep(7);
+    else if (wizardStep === 9)  setWizardStep(8);
+    else if (wizardStep === 11) setWizardStep(9);
   };
 
   const isStepValid = (() => {
     switch (wizardStep) {
       case 1: return !!uploadedUrl && !uploading;
-      case 2: return !!category;
-      case 3: return isFabricCategory ? !!fabricStyle : true;
+      case 2: return !!clothingType;
       case 4: return !!ageGroup;
       case 5: return !!gender && !!ethnicity;
+      case 3: return !!clothingStyle;
       case 6: return !!background;
       case 7: return !!occasion;
       default: return true;
@@ -1615,37 +1656,62 @@ export default function DashboardPage() {
                 </div>
               )}
 
-              {/* ── Step 2: Category ── */}
+              {/* ── Step 2: Stitched or Unstitched ── */}
               {wizardStep === 2 && (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {CATEGORIES.map((cat) => (
-                    <button key={cat.id} onClick={() => setCategory(cat.id)}
-                      className={`flex flex-col items-center gap-3 p-5 rounded-2xl border transition-all ${
-                        category === cat.id
-                          ? "border-violet-500 bg-violet-500/10 text-violet-300"
-                          : "border-white/[0.07] bg-white/[0.03] text-white/60 hover:border-violet-500/40 hover:bg-white/[0.05]"
-                      }`}>
-                      <span className="text-3xl">{cat.emoji}</span>
-                      <span className="text-sm font-medium text-center leading-tight">{cat.label}</span>
-                    </button>
-                  ))}
+                <div className="grid grid-cols-2 gap-4">
+                  <button
+                    onClick={() => { setClothingType("stitched"); setClothingStyle(null); }}
+                    className={`flex flex-col items-center gap-3 p-6 rounded-2xl border transition-all ${
+                      clothingType === "stitched"
+                        ? "border-violet-500 bg-violet-500/10 text-violet-300"
+                        : "border-white/[0.07] bg-white/[0.03] text-white/60 hover:border-violet-500/40"
+                    }`}
+                  >
+                    <span className="text-4xl">👔</span>
+                    <div className="text-center">
+                      <p className="font-semibold text-sm">Stitched</p>
+                      <p className="text-xs text-white/40 mt-1">Ready to wear garment</p>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => { setClothingType("unstitched"); setClothingStyle(null); }}
+                    className={`flex flex-col items-center gap-3 p-6 rounded-2xl border transition-all ${
+                      clothingType === "unstitched"
+                        ? "border-violet-500 bg-violet-500/10 text-violet-300"
+                        : "border-white/[0.07] bg-white/[0.03] text-white/60 hover:border-violet-500/40"
+                    }`}
+                  >
+                    <span className="text-4xl">🧵</span>
+                    <div className="text-center">
+                      <p className="font-semibold text-sm">Unstitched</p>
+                      <p className="text-xs text-white/40 mt-1">Fabric - select style</p>
+                    </div>
+                  </button>
                 </div>
               )}
 
-              {/* ── Step 3: Fabric Style ── */}
-              {wizardStep === 3 && isFabricCategory && (
+              {/* ── Step 3: Style selector ── */}
+              {wizardStep === 3 && gender && (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {FABRIC_STYLES[category as "fabric-male" | "fabric-female"].map((style) => (
-                    <button key={style.id} onClick={() => setFabricStyle(style.id)}
-                      className={`flex flex-col items-center gap-3 p-5 rounded-2xl border transition-all ${
-                        fabricStyle === style.id
-                          ? "border-violet-500 bg-violet-500/10 text-violet-300"
-                          : "border-white/[0.07] bg-white/[0.03] text-white/60 hover:border-violet-500/40 hover:bg-white/[0.05]"
-                      }`}>
-                      <span className="text-3xl">{style.emoji}</span>
-                      <span className="text-sm font-medium text-center leading-tight">{style.label}</span>
-                    </button>
-                  ))}
+                  {(() => {
+                    const styles = clothingType === "stitched"
+                      ? (gender === "male" ? STITCHED_STYLES_MALE : STITCHED_STYLES_FEMALE)
+                      : (gender === "male" ? UNSTITCHED_STYLES_MALE : UNSTITCHED_STYLES_FEMALE);
+                    return styles.map((style) => (
+                      <button
+                        key={style.id}
+                        onClick={() => setClothingStyle(style.id)}
+                        className={`flex flex-col items-center gap-2 p-4 rounded-2xl border transition-all ${
+                          clothingStyle === style.id
+                            ? "border-violet-500 bg-violet-500/10 text-violet-300"
+                            : "border-white/[0.07] bg-white/[0.03] text-white/60 hover:border-violet-500/40"
+                        }`}
+                      >
+                        <span className="text-2xl">{style.emoji}</span>
+                        <span className="text-xs font-medium text-center leading-tight">{style.label}</span>
+                      </button>
+                    ));
+                  })()}
                 </div>
               )}
 
@@ -1752,36 +1818,10 @@ export default function DashboardPage() {
                 </div>
               )}
 
-              {/* ── Step 12: Suit Style ── */}
-              {wizardStep === 12 && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    {SUIT_STYLES.map((s) => (
-                      <button key={s.id} onClick={() => setSuitStyle(s.id)}
-                        className={`flex flex-col items-center gap-2 p-5 rounded-2xl border text-left transition-all ${
-                          suitStyle === s.id
-                            ? "border-violet-500 bg-violet-500/10"
-                            : "border-white/[0.07] bg-white/[0.03] hover:border-violet-500/40 hover:bg-white/[0.05]"
-                        }`}>
-                        <span className="text-3xl">{s.icon}</span>
-                        <p className={`text-sm font-semibold text-center leading-tight ${suitStyle === s.id ? "text-violet-300" : "text-white/80"}`}>{s.label}</p>
-                        <p className="text-[11px] text-white/40 text-center leading-relaxed">{s.desc}</p>
-                      </button>
-                    ))}
-                  </div>
-                  <button
-                    onClick={() => { setSuitStyle(""); setWizardStep(8); }}
-                    className="w-full py-2.5 rounded-xl border border-white/[0.07] text-xs text-white/40 hover:text-white/60 hover:border-white/20 transition-colors"
-                  >
-                    Skip this step
-                  </button>
-                </div>
-              )}
-
               {/* ── Step 8: Sides ── */}
-              {wizardStep === 8 && category && (
+              {wizardStep === 8 && (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {SIDES_BY_CATEGORY[category].map((side) => {
+                  {SIDES_BY_CATEGORY["clothing"].map((side) => {
                     const isFront = side.id === "front";
                     const isSelected = sides.includes(side.id);
                     return (
@@ -1842,24 +1882,34 @@ export default function DashboardPage() {
                 </div>
               )}
 
-              {/* ── Step 11: Video reel ── */}
+              {/* ── Step 11: Final Details (prompt) ── */}
               {wizardStep === 11 && (
-                <div className="grid grid-cols-2 gap-3">
-                  {([true, false] as const).map((val) => (
-                    <button key={String(val)} onClick={() => setAddVideo(val)}
-                      className={`flex flex-col gap-2 p-5 rounded-2xl border text-left transition-all ${
-                        addVideo === val
-                          ? "border-violet-500 bg-violet-500/10"
-                          : "border-white/[0.07] bg-white/[0.03] hover:border-violet-500/40"
-                      }`}>
-                      <p className={`text-sm font-semibold ${addVideo === val ? "text-violet-300" : "text-white/80"}`}>
-                        {val ? "Yes" : "No"}
-                      </p>
-                      <p className="text-xs text-white/40 leading-relaxed">
-                        {val ? "Generate a cinematic reel from your images" : "Images only"}
-                      </p>
-                    </button>
-                  ))}
+                <div className="space-y-4">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-medium text-white/70">✨ AI Prompt (editable)</h3>
+                      <button
+                        onClick={() => setEditablePrompt(buildClientPrompt(
+                          "clothing", gender!, ethnicity!, occasion!, ageGroup!, background!,
+                          clothingType === "unstitched" ? clothingStyle : null,
+                          clothingType === "stitched" ? clothingStyle : null,
+                          clothingType!,
+                        ))}
+                        className="text-xs text-violet-400 hover:text-violet-300"
+                      >
+                        Reset
+                      </button>
+                    </div>
+                    <textarea
+                      value={editablePrompt}
+                      onChange={(e) => setEditablePrompt(e.target.value)}
+                      rows={5}
+                      className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-3 text-white text-sm resize-none focus:outline-none focus:border-violet-500 transition-colors"
+                    />
+                    <p className="text-xs text-white/40">
+                      Add custom details: &ldquo;add white boot cut trousers&rdquo;, &ldquo;make model sit on chair&rdquo;, &ldquo;holding a coffee cup&rdquo;, etc.
+                    </p>
+                  </div>
                 </div>
               )}
 
@@ -2092,574 +2142,463 @@ export default function DashboardPage() {
 
                       {/* Mode toggle */}
                       <div className="flex gap-1 p-1 bg-white/[0.04] rounded-xl border border-white/[0.07]">
-                        {([
-                          { id: "canvas" as ReelMode, label: "Canvas Reel" },
-                          { id: "ai-video" as ReelMode, label: "AI Video · Fashn.ai" },
-                        ]).map((mode) => (
-                          <button key={mode.id} onClick={() => setReelMode(mode.id)}
-                            className={`flex-1 py-2 text-xs font-medium rounded-lg transition-all ${
-                              reelMode === mode.id
-                                ? "bg-violet-600 text-white"
-                                : "text-white/40 hover:text-white/70"
-                            }`}>
-                            {mode.label}
-                          </button>
-                        ))}
+                        <button onClick={() => setReelMode("fashn")}
+                          className={`flex-1 py-2 text-xs font-medium rounded-lg transition-all ${reelMode === "fashn" ? "bg-violet-600 text-white" : "text-white/40 hover:text-white/70"}`}>
+                          🎬 Fashn.ai Video
+                        </button>
+                        <button onClick={() => setReelMode("canvas")}
+                          className={`flex-1 py-2 text-xs font-medium rounded-lg transition-all ${reelMode === "canvas" ? "bg-violet-600 text-white" : "text-white/40 hover:text-white/70"}`}>
+                          🖼️ Canvas Reel
+                        </button>
                       </div>
 
-                      {/* Shared hidden music file input — always mounted so both modes can use it */}
-                      <input
-                        ref={musicFileRef}
-                        type="file"
-                        accept="audio/mp3,audio/mpeg,audio/*"
-                        className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) { setCustomMusicFile(file); setSelectedMusicTrack("custom"); stopPreview(); }
-                        }}
-                      />
+                      {/* ── Fashn.ai section ── */}
+                      {reelMode === "fashn" && <>
 
-                      {reelMode === "canvas" && <>
-
-                      {/* 1. Format selector */}
-                      <div>
-                        <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-3">Format</p>
-                        <div className="flex gap-2 flex-wrap">
-                          {REEL_FORMATS.map((fmt) => (
-                            <button key={fmt.id} onClick={() => setReelFormat(fmt.id)}
-                              className={`px-4 py-2 rounded-full border text-sm transition-all ${
-                                reelFormat === fmt.id
-                                  ? "bg-violet-600/20 border-violet-500 text-violet-300"
-                                  : "bg-white/[0.03] border-white/[0.07] text-white/50 hover:border-white/20"
-                              }`}>
-                              <span className="font-medium">{fmt.label}</span>
-                              <span className="ml-1.5 text-[10px] opacity-60">{fmt.subtitle}</span>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* 2. Template selector */}
-                      <div>
-                        <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-3">Motion Template</p>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                          {REEL_TEMPLATES.map((tpl) => (
-                            <button key={tpl.id} onClick={() => setReelTemplate(tpl.id)}
-                              className={`flex flex-col gap-2 p-4 rounded-xl border text-left transition-all ${
-                                reelTemplate === tpl.id
-                                  ? "border-violet-500 bg-violet-500/10"
-                                  : "border-white/[0.07] bg-white/[0.03] hover:border-violet-500/40 hover:bg-white/[0.05]"
-                              }`}>
-                              <span className="text-2xl leading-none">{tpl.icon}</span>
-                              <p className={`text-xs font-semibold ${reelTemplate === tpl.id ? "text-violet-300" : "text-white/80"}`}>
-                                {tpl.name}
-                              </p>
-                              <p className="text-[10px] text-white/40 leading-relaxed">{tpl.desc}</p>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* 3. Image selector */}
-                      <div>
-                        <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-3">
-                          {reelTemplate === "fade-slideshow" ? "Images" : "Choose image"}
-                        </p>
-                        {reelTemplate === "fade-slideshow" ? (
-                          <div className="flex items-center gap-3 p-4 rounded-xl border border-violet-500/30 bg-violet-500/5">
-                            <div className="flex gap-1.5">
-                              {results.slice(0, 4).map((url, i) => (
-                                <div key={i} className="w-9 h-12 rounded-lg overflow-hidden border border-violet-500/30 flex-shrink-0">
-                                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                                  <img src={url} alt="" className="w-full h-full object-cover" />
-                                </div>
-                              ))}
-                              {results.length > 4 && (
-                                <div className="w-9 h-12 rounded-lg bg-white/[0.05] border border-white/10 flex items-center justify-center flex-shrink-0">
-                                  <span className="text-[9px] text-white/40">+{results.length - 4}</span>
-                                </div>
-                              )}
-                            </div>
-                            <p className="text-xs text-violet-300 font-medium">All {results.length} images will be used</p>
-                          </div>
-                        ) : (
+                        {/* Image selector */}
+                        <div>
+                          <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-3">Choose images</p>
                           <div className="flex gap-3 overflow-x-auto pb-2">
                             {results.map((url, i) => (
-                              <button key={i} onClick={() => setSelectedVideoImage(url)}
+                              <button key={i}
+                                onClick={() => {
+                                  setAiVideoImages((prev) =>
+                                    prev.includes(url) ? prev.filter((u) => u !== url) : [...prev, url]
+                                  );
+                                }}
                                 className={`relative flex-shrink-0 w-20 h-28 rounded-xl overflow-hidden border-2 transition-all ${
-                                  selectedVideoImage === url ? "border-violet-500 scale-[1.02]" : "border-white/10 hover:border-violet-500/40"
-                                }`}>
+                                  aiVideoImages.includes(url) ? "border-violet-500 scale-[1.02]" : "border-white/10 hover:border-violet-500/40"
+                                }`}
+                              >
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img src={url} alt={`Image ${i + 1}`} className="w-full h-full object-cover" />
-                                {selectedVideoImage === url && (
-                                  <div className="absolute inset-0 bg-violet-500/20 flex items-center justify-center">
-                                    <div className="w-5 h-5 rounded-full bg-violet-500 flex items-center justify-center">
-                                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                                        <path d="M2 5l2.5 2.5L8 3" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                      </svg>
-                                    </div>
+                                {aiVideoImages.includes(url) && (
+                                  <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-violet-500 flex items-center justify-center">
+                                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                                      <path d="M2 5l2.5 2.5L8 3" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                    </svg>
                                   </div>
                                 )}
                               </button>
                             ))}
                           </div>
-                        )}
-                      </div>
-
-                      {/* 4. Duration selector */}
-                      <div>
-                        <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-3">Duration</p>
-                        <div className="flex gap-2">
-                          {([5, 10, 15] as const).map((d) => (
-                            <button key={d} onClick={() => setReelDuration(d)}
-                              className={`px-4 py-2 rounded-full border text-sm transition-all ${
-                                reelDuration === d
-                                  ? "bg-violet-600/20 border-violet-500 text-violet-300"
-                                  : "bg-white/[0.03] border-white/[0.07] text-white/50 hover:border-white/20"
-                              }`}>
-                              {d} sec
-                            </button>
-                          ))}
+                          <p className="text-xs text-white/30 mt-2">Select multiple images — a separate reel will be generated for each</p>
                         </div>
-                      </div>
 
-                      {/* 5. Brand name input */}
-                      <div>
-                        <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-3">
-                          Brand Overlay <span className="normal-case text-white/20">(optional)</span>
-                        </p>
-                        <input
-                          type="text"
-                          value={reelBrandName}
-                          onChange={(e) => setReelBrandName(e.target.value)}
-                          placeholder="e.g. DripShoots"
-                          maxLength={40}
-                          className="w-full bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3 text-sm text-white placeholder-white/20 focus:outline-none focus:border-violet-500/50 transition-colors"
-                        />
-                        {reelBrandName.trim() && (
-                          <p className="text-[10px] text-white/30 mt-1.5">Brand name will appear at the bottom of the video</p>
+                        {/* Motion prompt */}
+                        {!aiVideoOutputUrls.length && (
+                          <div>
+                            <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-3">
+                              Model Motion <span className="normal-case text-white/20">(optional)</span>
+                            </p>
+                            <input
+                              type="text"
+                              value={aiVideoMotionPrompt}
+                              onChange={(e) => setAiVideoMotionPrompt(e.target.value)}
+                              placeholder="e.g. walking confidently, fabric flowing, slow spin..."
+                              maxLength={120}
+                              className="w-full bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3 text-sm text-white placeholder-white/20 focus:outline-none focus:border-violet-500/50 transition-colors"
+                            />
+                            <div className="flex flex-wrap gap-1.5 mt-2">
+                              {["Walking", "Fabric Flowing", "Slow Spin", "Looking at Camera", "Runway Walk"].map((pill) => (
+                                <button
+                                  key={pill}
+                                  onClick={() => setAiVideoMotionPrompt(pill)}
+                                  className={`px-3 py-1 rounded-full text-xs border transition-all ${
+                                    aiVideoMotionPrompt === pill
+                                      ? "bg-violet-600/20 border-violet-500 text-violet-300"
+                                      : "bg-white/[0.03] border-white/[0.07] text-white/40 hover:border-white/20 hover:text-white/70"
+                                  }`}
+                                >
+                                  {pill}
+                                </button>
+                              ))}
+                            </div>
+                            <p className="text-[10px] text-white/30 mt-2">💡 Keep short and concrete. Leave empty for automatic motion.</p>
+                          </div>
                         )}
-                      </div>
 
-                      {/* 6. Music */}
-                      <div>
-                        <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-3">Music</p>
-                        <div className="space-y-2">
-                          {/* No music */}
-                          <button
-                            onClick={() => { setSelectedMusicTrack(null); stopPreview(); }}
-                            className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${
-                              selectedMusicTrack === null
-                                ? "border-violet-500 bg-violet-500/10"
-                                : "border-white/[0.07] bg-white/[0.03] hover:border-violet-500/40"
-                            }`}
-                          >
-                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-sm ${
-                              selectedMusicTrack === null ? "bg-violet-500/20" : "bg-white/[0.05]"
-                            }`}>🔇</div>
-                            <span className={`flex-1 text-sm font-medium ${selectedMusicTrack === null ? "text-violet-300" : "text-white/60"}`}>
-                              No music
-                            </span>
-                            {selectedMusicTrack === null && (
-                              <div className="w-4 h-4 rounded-full bg-violet-500 flex items-center justify-center flex-shrink-0">
-                                <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-                                  <path d="M1.5 4l1.5 1.5L6.5 2" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                </svg>
-                              </div>
-                            )}
-                          </button>
+                        {/* Resolution */}
+                        {!aiVideoOutputUrls.length && (
+                          <div>
+                            <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-3">Resolution</p>
+                            <div className="flex gap-2 flex-wrap">
+                              {(["480p", "720p", "1080p"] as const).map((res) => (
+                                <button key={res} onClick={() => setAiVideoResolution(res)}
+                                  className={`px-4 py-2 rounded-full border text-sm transition-all ${
+                                    aiVideoResolution === res
+                                      ? "bg-violet-600/20 border-violet-500 text-violet-300"
+                                      : "bg-white/[0.03] border-white/[0.07] text-white/50 hover:border-white/20"
+                                  }`}>
+                                  {res}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
 
-                          {/* Built-in tracks */}
-                          {MUSIC_TRACKS.map((track) => (
-                            <div
-                              key={track.id}
-                              className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
-                                selectedMusicTrack === track.id
-                                  ? "border-violet-500 bg-violet-500/10"
-                                  : "border-white/[0.07] bg-white/[0.03]"
+                        {/* Generate button + progress */}
+                        {!aiVideoOutputUrls.length && (
+                          <div>
+                            <button
+                              disabled={!aiVideoImages.length || aiVideoGenerating}
+                              onClick={handleGenerateAiVideo}
+                              className={`w-full py-3.5 rounded-xl text-sm font-medium transition-colors ${
+                                aiVideoImages.length && !aiVideoGenerating
+                                  ? "bg-violet-600 hover:bg-violet-500 text-white"
+                                  : "bg-white/[0.04] text-white/20 cursor-not-allowed"
                               }`}
                             >
-                              <button
-                                onClick={() => togglePreview(track.id, track.src)}
-                                className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${
-                                  previewingTrack === track.id
-                                    ? "bg-violet-500 text-white"
-                                    : "bg-white/[0.05] text-white/50 hover:bg-white/[0.1] hover:text-white"
-                                }`}
-                              >
-                                {previewingTrack === track.id ? (
-                                  <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
-                                    <rect x="2" y="1" width="2.5" height="8" rx="0.5"/>
-                                    <rect x="5.5" y="1" width="2.5" height="8" rx="0.5"/>
-                                  </svg>
-                                ) : (
-                                  <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
-                                    <path d="M2 1.5L8.5 5 2 8.5V1.5z"/>
-                                  </svg>
-                                )}
-                              </button>
-                              <span className={`flex-1 text-sm font-medium ${
-                                selectedMusicTrack === track.id ? "text-violet-300" : "text-white/60"
-                              }`}>{track.label}</span>
-                              <button
-                                onClick={() => { setSelectedMusicTrack(track.id); stopPreview(); }}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex-shrink-0 ${
-                                  selectedMusicTrack === track.id
-                                    ? "bg-violet-500/20 border border-violet-500/40 text-violet-300"
-                                    : "bg-white/[0.05] border border-white/10 text-white/50 hover:text-white hover:border-white/20"
-                                }`}
-                              >
-                                {selectedMusicTrack === track.id ? "Selected" : "Select"}
-                              </button>
-                            </div>
-                          ))}
-
-                          {/* Upload own */}
-                          <div className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
-                            selectedMusicTrack === "custom"
-                              ? "border-violet-500 bg-violet-500/10"
-                              : "border-white/[0.07] bg-white/[0.03]"
-                          }`}>
-                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-sm ${
-                              selectedMusicTrack === "custom" ? "bg-violet-500/20" : "bg-white/[0.05]"
-                            }`}>🎵</div>
-                            <div className="flex-1 min-w-0">
-                              <p className={`text-sm font-medium truncate ${selectedMusicTrack === "custom" ? "text-violet-300" : "text-white/60"}`}>
-                                {customMusicFile ? customMusicFile.name : "Upload your own"}
-                              </p>
-                              {customMusicFile && (
-                                <p className="text-[10px] text-white/30 mt-0.5">{(customMusicFile.size / 1024 / 1024).toFixed(1)} MB · MP3</p>
-                              )}
-                            </div>
-                            <button
-                              onClick={() => musicFileRef.current?.click()}
-                              className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white/[0.05] border border-white/10 text-white/50 hover:text-white hover:border-white/20 transition-colors flex-shrink-0"
-                            >
-                              Browse
+                              {aiVideoGenerating
+                                ? `Generating… (${aiVideoImages.length > 1 ? `${Math.round((aiVideoProgress / 100) * aiVideoImages.length)} / ${aiVideoImages.length}` : "please wait"})`
+                                : aiVideoImages.length > 1
+                                  ? `Generate ${aiVideoImages.length} AI Reels`
+                                  : "Generate AI Reel"}
                             </button>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* 7 & 8. Render button + progress */}
-                      {!reelOutputUrl && (
-                        <div>
-                          <button
-                            disabled={reelRendering || (reelTemplate !== "fade-slideshow" && !selectedVideoImage)}
-                            onClick={renderReel}
-                            className={`w-full py-3.5 rounded-xl text-sm font-medium transition-colors ${
-                              !reelRendering && (reelTemplate === "fade-slideshow" || selectedVideoImage)
-                                ? "bg-violet-600 hover:bg-violet-500 text-white"
-                                : "bg-white/[0.04] text-white/20 cursor-not-allowed"
-                            }`}
-                          >
-                            {reelRendering ? "Rendering…" : "Render Reel"}
-                          </button>
-                          {reelRendering && (
-                            <div className="mt-4 space-y-2">
-                              <div className="bg-white/[0.06] rounded-full h-[3px] overflow-hidden">
-                                <div
-                                  className="bg-gradient-to-r from-violet-600 to-fuchsia-500 h-full rounded-full transition-all duration-300"
-                                  style={{ width: `${reelRenderProgress}%` }}
-                                />
-                              </div>
-                              <div className="flex justify-between text-xs text-white/40">
-                                <span>Rendering frames…</span>
-                                <span>{reelRenderProgress}%</span>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* 8. Video preview + Download */}
-                      {reelOutputUrl && (
-                        <div className="space-y-4">
-                          {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-                          <video src={reelOutputUrl} controls autoPlay loop className="w-full rounded-2xl bg-black" />
-                          <div className="flex gap-3">
-                            <a
-                              href={reelOutputUrl}
-                              download={REEL_FORMATS.find((f) => f.id === reelFormat)!.filename}
-                              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium bg-violet-600 hover:bg-violet-500 text-white transition-colors"
-                            >
-                              <DownloadIcon />
-                              Download
-                            </a>
-                            <button
-                              onClick={() => { setReelOutputUrl(null); setReelRenderProgress(0); }}
-                              className="flex-1 py-3 rounded-xl text-sm font-medium border border-white/[0.07] text-white/60 hover:text-white hover:border-white/20 transition-colors"
-                            >
-                              ← Render Again
-                            </button>
-                          </div>
-                        </div>
-                      )}
-
-                      </>}
-
-                      {/* ── AI Video mode ── */}
-                      {reelMode === "ai-video" && <>
-
-                      {/* Image selector */}
-                      {!aiVideoOutputUrl && (
-                        <div>
-                          <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-3">Choose image</p>
-                          <div className="flex gap-3 overflow-x-auto pb-2">
-                            {results.map((url, i) => (
-                              <button key={i} onClick={() => setAiVideoImageUrl(url)}
-                                className={`relative flex-shrink-0 w-20 h-28 rounded-xl overflow-hidden border-2 transition-all ${
-                                  aiVideoImageUrl === url ? "border-violet-500 scale-[1.02]" : "border-white/10 hover:border-violet-500/40"
-                                }`}>
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img src={url} alt={`Image ${i + 1}`} className="w-full h-full object-cover" />
-                                {aiVideoImageUrl === url && (
-                                  <div className="absolute inset-0 bg-violet-500/20 flex items-center justify-center">
-                                    <div className="w-5 h-5 rounded-full bg-violet-500 flex items-center justify-center">
-                                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                                        <path d="M2 5l2.5 2.5L8 3" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                      </svg>
-                                    </div>
-                                  </div>
-                                )}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Duration */}
-                      {!aiVideoOutputUrl && (
-                        <div>
-                          <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-3">Duration</p>
-                          <div className="flex gap-2">
-                            {([5, 10] as const).map((d) => (
-                              <button key={d} onClick={() => setAiVideoDuration(d)}
-                                className={`px-4 py-2 rounded-full border text-sm transition-all ${
-                                  aiVideoDuration === d
-                                    ? "bg-violet-600/20 border-violet-500 text-violet-300"
-                                    : "bg-white/[0.03] border-white/[0.07] text-white/50 hover:border-white/20"
-                                }`}>
-                                {d}s
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Resolution */}
-                      {!aiVideoOutputUrl && (
-                        <div>
-                          <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-3">Resolution</p>
-                          <div className="flex gap-2 flex-wrap">
-                            {(["480p", "720p", "1080p"] as const).map((res) => (
-                              <button key={res} onClick={() => setAiVideoResolution(res)}
-                                className={`flex items-center gap-2 px-4 py-2 rounded-full border text-sm transition-all ${
-                                  aiVideoResolution === res
-                                    ? "bg-violet-600/20 border-violet-500 text-violet-300"
-                                    : "bg-white/[0.03] border-white/[0.07] text-white/50 hover:border-white/20"
-                                }`}>
-                                <span className="font-medium">{res}</span>
-                                <span className={`text-[10px] px-1.5 py-0.5 rounded-full border ${
-                                  aiVideoResolution === res
-                                    ? "bg-violet-500/20 border-violet-500/30 text-violet-300"
-                                    : "bg-white/[0.05] border-white/10 text-white/30"
-                                }`}>{AI_VIDEO_CREDITS[res]}cr</span>
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Credit badge */}
-                      {!aiVideoOutputUrl && (
-                        <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/[0.02] border border-white/[0.06]">
-                          <span className="text-white/40 text-xs">Cost</span>
-                          <span className="text-violet-400 font-bold text-sm">
-                            {AI_VIDEO_CREDITS[aiVideoResolution]} credit{AI_VIDEO_CREDITS[aiVideoResolution] !== 1 ? "s" : ""}
-                          </span>
-                          <span className="text-white/20 text-xs">· {aiVideoDuration}s · {aiVideoResolution}</span>
-                        </div>
-                      )}
-
-                      {/* Motion prompt */}
-                      {!aiVideoOutputUrl && (
-                        <div>
-                          <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-3">
-                            Model Motion <span className="normal-case text-white/20">(optional)</span>
-                          </p>
-                          <input
-                            type="text"
-                            value={aiVideoMotionPrompt}
-                            onChange={(e) => setAiVideoMotionPrompt(e.target.value)}
-                            placeholder="e.g. walking confidently, sexy pose, smart look, fabric flowing, slow spin..."
-                            maxLength={120}
-                            className="w-full bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3 text-sm text-white placeholder-white/20 focus:outline-none focus:border-violet-500/50 transition-colors"
-                          />
-                          <div className="flex flex-wrap gap-1.5 mt-2">
-                            {["Walking", "Sexy Pose", "Smart Look", "Fabric Flowing", "Slow Spin", "Runway Walk"].map((pill) => (
-                              <button
-                                key={pill}
-                                onClick={() => setAiVideoMotionPrompt(pill)}
-                                className={`px-3 py-1 rounded-full text-xs border transition-all ${
-                                  aiVideoMotionPrompt === pill
-                                    ? "bg-violet-600/20 border-violet-500 text-violet-300"
-                                    : "bg-white/[0.03] border-white/[0.07] text-white/40 hover:border-white/20 hover:text-white/70"
-                                }`}
-                              >
-                                {pill}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Music */}
-                      <div>
-                        <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-3">Music</p>
-                        <div className="space-y-2">
-                          <button
-                            onClick={() => { setSelectedMusicTrack(null); stopPreview(); }}
-                            className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${
-                              selectedMusicTrack === null
-                                ? "border-violet-500 bg-violet-500/10"
-                                : "border-white/[0.07] bg-white/[0.03] hover:border-violet-500/40"
-                            }`}
-                          >
-                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-sm ${
-                              selectedMusicTrack === null ? "bg-violet-500/20" : "bg-white/[0.05]"
-                            }`}>🔇</div>
-                            <span className={`flex-1 text-sm font-medium ${selectedMusicTrack === null ? "text-violet-300" : "text-white/60"}`}>
-                              No music
-                            </span>
-                            {selectedMusicTrack === null && (
-                              <div className="w-4 h-4 rounded-full bg-violet-500 flex items-center justify-center flex-shrink-0">
-                                <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-                                  <path d="M1.5 4l1.5 1.5L6.5 2" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                </svg>
+                            {aiVideoGenerating && (
+                              <div className="mt-4 space-y-2">
+                                <div className="bg-white/[0.06] rounded-full h-[3px] overflow-hidden">
+                                  <div
+                                    className="bg-gradient-to-r from-violet-600 to-fuchsia-500 h-full rounded-full transition-all duration-1000"
+                                    style={{ width: `${aiVideoProgress}%` }}
+                                  />
+                                </div>
+                                <div className="flex justify-between text-xs text-white/40">
+                                  <span>Generating via Fashn.ai…</span>
+                                  <span>{aiVideoProgress}%</span>
+                                </div>
                               </div>
                             )}
-                          </button>
-                          {MUSIC_TRACKS.map((track) => (
-                            <div key={track.id} className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
-                              selectedMusicTrack === track.id
-                                ? "border-violet-500 bg-violet-500/10"
-                                : "border-white/[0.07] bg-white/[0.03]"
-                            }`}>
-                              <button onClick={() => togglePreview(track.id, track.src)}
-                                className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${
-                                  previewingTrack === track.id
-                                    ? "bg-violet-500 text-white"
-                                    : "bg-white/[0.05] text-white/50 hover:bg-white/[0.1] hover:text-white"
-                                }`}>
-                                {previewingTrack === track.id ? (
-                                  <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
-                                    <rect x="2" y="1" width="2.5" height="8" rx="0.5"/>
-                                    <rect x="5.5" y="1" width="2.5" height="8" rx="0.5"/>
-                                  </svg>
-                                ) : (
-                                  <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
-                                    <path d="M2 1.5L8.5 5 2 8.5V1.5z"/>
-                                  </svg>
-                                )}
-                              </button>
-                              <span className={`flex-1 text-sm font-medium ${
-                                selectedMusicTrack === track.id ? "text-violet-300" : "text-white/60"
-                              }`}>{track.label}</span>
-                              <button
-                                onClick={() => { setSelectedMusicTrack(track.id); stopPreview(); }}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex-shrink-0 ${
-                                  selectedMusicTrack === track.id
-                                    ? "bg-violet-500/20 border border-violet-500/40 text-violet-300"
-                                    : "bg-white/[0.05] border border-white/10 text-white/50 hover:text-white hover:border-white/20"
-                                }`}>
-                                {selectedMusicTrack === track.id ? "Selected" : "Select"}
-                              </button>
-                            </div>
-                          ))}
-                          <div className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
-                            selectedMusicTrack === "custom"
-                              ? "border-violet-500 bg-violet-500/10"
-                              : "border-white/[0.07] bg-white/[0.03]"
-                          }`}>
-                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-sm ${
-                              selectedMusicTrack === "custom" ? "bg-violet-500/20" : "bg-white/[0.05]"
-                            }`}>🎵</div>
-                            <div className="flex-1 min-w-0">
-                              <p className={`text-sm font-medium truncate ${selectedMusicTrack === "custom" ? "text-violet-300" : "text-white/60"}`}>
-                                {customMusicFile ? customMusicFile.name : "Upload your own"}
-                              </p>
-                              {customMusicFile && (
-                                <p className="text-[10px] text-white/30 mt-0.5">{(customMusicFile.size / 1024 / 1024).toFixed(1)} MB · MP3</p>
-                              )}
-                            </div>
-                            <button
-                              onClick={() => musicFileRef.current?.click()}
-                              className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white/[0.05] border border-white/10 text-white/50 hover:text-white hover:border-white/20 transition-colors flex-shrink-0"
-                            >
-                              Browse
-                            </button>
+                            {aiVideoError && (
+                              <p className="mt-3 text-xs text-red-400 text-center">{aiVideoError}</p>
+                            )}
                           </div>
-                        </div>
-                      </div>
+                        )}
 
-                      {/* Generate button + progress */}
-                      {!aiVideoOutputUrl && (
-                        <div>
-                          <button
-                            disabled={!aiVideoImageUrl || aiVideoGenerating}
-                            onClick={handleGenerateAiVideo}
-                            className={`w-full py-3.5 rounded-xl text-sm font-medium transition-colors ${
-                              aiVideoImageUrl && !aiVideoGenerating
-                                ? "bg-violet-600 hover:bg-violet-500 text-white"
-                                : "bg-white/[0.04] text-white/20 cursor-not-allowed"
-                            }`}
-                          >
-                            {aiVideoGenerating ? "Generating…" : "Generate AI Video"}
-                          </button>
-                          {aiVideoGenerating && (
-                            <div className="mt-4 space-y-2">
-                              <div className="bg-white/[0.06] rounded-full h-[3px] overflow-hidden">
-                                <div
-                                  className="bg-gradient-to-r from-violet-600 to-fuchsia-500 h-full rounded-full transition-all duration-1000"
-                                  style={{ width: `${aiVideoProgress}%` }}
-                                />
+                        {/* Video outputs */}
+                        {aiVideoOutputUrls.length > 0 && (
+                          <div className="space-y-4">
+                            {aiVideoOutputUrls.map((url, i) => (
+                              <div key={i} className="space-y-2">
+                                <p className="text-xs text-white/40">Reel {i + 1}</p>
+                                {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+                                <video src={url} controls autoPlay loop className="w-full rounded-2xl bg-black" />
+                                <a
+                                  href={url}
+                                  download={`dripshoots-reel-${i + 1}.mp4`}
+                                  className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-violet-600 hover:bg-violet-500 text-white transition-colors"
+                                >
+                                  <DownloadIcon /> Download Reel {i + 1}
+                                </a>
                               </div>
-                              <div className="flex justify-between text-xs text-white/40">
-                                <span>Generating via Fashn.ai…</span>
-                                <span>{aiVideoProgress}%</span>
-                              </div>
-                            </div>
-                          )}
-                          {aiVideoError && (
-                            <p className="mt-3 text-xs text-red-400 text-center">{aiVideoError}</p>
-                          )}
-                        </div>
-                      )}
-
-                      {/* AI Video output */}
-                      {aiVideoOutputUrl && (
-                        <div className="space-y-4">
-                          {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-                          <video src={aiVideoOutputUrl} controls autoPlay loop className="w-full rounded-2xl bg-black" />
-                          <div className="flex gap-3">
-                            <a
-                              href={aiVideoOutputUrl}
-                              download="dripshoots-ai-video.webm"
-                              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium bg-violet-600 hover:bg-violet-500 text-white transition-colors"
-                            >
-                              <DownloadIcon />
-                              Download
-                            </a>
+                            ))}
                             <button
-                              onClick={() => { setAiVideoOutputUrl(null); setAiVideoProgress(0); setAiVideoError(null); }}
-                              className="flex-1 py-3 rounded-xl text-sm font-medium border border-white/[0.07] text-white/60 hover:text-white hover:border-white/20 transition-colors"
+                              onClick={() => { setAiVideoOutputUrls([]); setAiVideoProgress(0); setAiVideoError(null); }}
+                              className="w-full py-2.5 rounded-xl text-sm font-medium border border-white/[0.07] text-white/60 hover:text-white transition-colors"
                             >
                               ← Generate Again
                             </button>
                           </div>
+                        )}
+
+                      </>}
+
+                      {/* ── Canvas section ── */}
+                      {reelMode === "canvas" && <>
+
+                        {/* Hidden music file input */}
+                        <input
+                          ref={musicFileRef}
+                          type="file"
+                          accept="audio/mp3,audio/mpeg,audio/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) { setCustomMusicFile(file); setSelectedMusicTrack("custom"); stopPreview(); }
+                          }}
+                        />
+
+                        {/* Format selector */}
+                        <div>
+                          <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-3">Format</p>
+                          <div className="flex gap-2 flex-wrap">
+                            {REEL_FORMATS.map((fmt) => (
+                              <button key={fmt.id} onClick={() => setReelFormat(fmt.id)}
+                                className={`px-4 py-2 rounded-full border text-sm transition-all ${
+                                  reelFormat === fmt.id
+                                    ? "bg-violet-600/20 border-violet-500 text-violet-300"
+                                    : "bg-white/[0.03] border-white/[0.07] text-white/50 hover:border-white/20"
+                                }`}>
+                                <span className="font-medium">{fmt.label}</span>
+                                <span className="ml-1.5 text-[10px] opacity-60">{fmt.subtitle}</span>
+                              </button>
+                            ))}
+                          </div>
                         </div>
-                      )}
+
+                        {/* Template selector */}
+                        <div>
+                          <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-3">Motion Template</p>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                            {REEL_TEMPLATES.map((tpl) => (
+                              <button key={tpl.id} onClick={() => setReelTemplate(tpl.id)}
+                                className={`flex flex-col gap-2 p-4 rounded-xl border text-left transition-all ${
+                                  reelTemplate === tpl.id
+                                    ? "border-violet-500 bg-violet-500/10"
+                                    : "border-white/[0.07] bg-white/[0.03] hover:border-violet-500/40 hover:bg-white/[0.05]"
+                                }`}>
+                                <span className="text-2xl leading-none">{tpl.icon}</span>
+                                <p className={`text-xs font-semibold ${reelTemplate === tpl.id ? "text-violet-300" : "text-white/80"}`}>
+                                  {tpl.name}
+                                </p>
+                                <p className="text-[10px] text-white/40 leading-relaxed">{tpl.desc}</p>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* 1-image hint */}
+                        {results.length === 1 && (
+                          <div className="p-3 rounded-xl bg-violet-500/10 border border-violet-500/20 text-xs text-violet-300">
+                            💡 1 image detected — Multi Motion template creates a dynamic reel using 3 different camera movements.
+                          </div>
+                        )}
+
+                        {/* Image selector */}
+                        <div>
+                          <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-3">
+                            {reelTemplate === "fade-slideshow" || reelTemplate === "multi-motion" ? "Images" : "Choose image"}
+                          </p>
+                          {reelTemplate === "fade-slideshow" ? (
+                            <div className="flex items-center gap-3 p-4 rounded-xl border border-violet-500/30 bg-violet-500/5">
+                              <div className="flex gap-1.5">
+                                {results.slice(0, 4).map((url, i) => (
+                                  <div key={i} className="w-9 h-12 rounded-lg overflow-hidden border border-violet-500/30 flex-shrink-0">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img src={url} alt="" className="w-full h-full object-cover" />
+                                  </div>
+                                ))}
+                                {results.length > 4 && (
+                                  <div className="w-9 h-12 rounded-lg bg-white/[0.05] border border-white/10 flex items-center justify-center flex-shrink-0">
+                                    <span className="text-[9px] text-white/40">+{results.length - 4}</span>
+                                  </div>
+                                )}
+                              </div>
+                              <p className="text-xs text-violet-300 font-medium">All {results.length} images will be used</p>
+                            </div>
+                          ) : reelTemplate === "multi-motion" ? (
+                            <div className="flex items-center gap-3 p-4 rounded-xl border border-violet-500/30 bg-violet-500/5">
+                              <div className="w-9 h-12 rounded-lg overflow-hidden border border-violet-500/30 flex-shrink-0">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={results[0]} alt="" className="w-full h-full object-cover" />
+                              </div>
+                              <p className="text-xs text-violet-300 font-medium">First image used with 3 motion segments</p>
+                            </div>
+                          ) : (
+                            <div className="flex gap-3 overflow-x-auto pb-2">
+                              {results.map((url, i) => (
+                                <button key={i} onClick={() => setSelectedVideoImage(url)}
+                                  className={`relative flex-shrink-0 w-20 h-28 rounded-xl overflow-hidden border-2 transition-all ${
+                                    selectedVideoImage === url ? "border-violet-500 scale-[1.02]" : "border-white/10 hover:border-violet-500/40"
+                                  }`}>
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img src={url} alt={`Image ${i + 1}`} className="w-full h-full object-cover" />
+                                  {selectedVideoImage === url && (
+                                    <div className="absolute inset-0 bg-violet-500/20 flex items-center justify-center">
+                                      <div className="w-5 h-5 rounded-full bg-violet-500 flex items-center justify-center">
+                                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                                          <path d="M2 5l2.5 2.5L8 3" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                        </svg>
+                                      </div>
+                                    </div>
+                                  )}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Duration selector */}
+                        <div>
+                          <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-3">Duration</p>
+                          <div className="flex gap-2">
+                            {([5, 10, 15] as const).map((d) => (
+                              <button key={d} onClick={() => setReelDuration(d)}
+                                className={`px-4 py-2 rounded-full border text-sm transition-all ${
+                                  reelDuration === d
+                                    ? "bg-violet-600/20 border-violet-500 text-violet-300"
+                                    : "bg-white/[0.03] border-white/[0.07] text-white/50 hover:border-white/20"
+                                }`}>
+                                {d} sec
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Brand name input */}
+                        <div>
+                          <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-3">
+                            Brand Overlay <span className="normal-case text-white/20">(optional)</span>
+                          </p>
+                          <input
+                            type="text"
+                            value={reelBrandName}
+                            onChange={(e) => setReelBrandName(e.target.value)}
+                            placeholder="e.g. DripShoots"
+                            maxLength={40}
+                            className="w-full bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3 text-sm text-white placeholder-white/20 focus:outline-none focus:border-violet-500/50 transition-colors"
+                          />
+                          {reelBrandName.trim() && (
+                            <p className="text-[10px] text-white/30 mt-1.5">Brand name will appear at the bottom of the video</p>
+                          )}
+                        </div>
+
+                        {/* Music */}
+                        <div>
+                          <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-3">Music</p>
+                          <div className="space-y-2">
+                            <button
+                              onClick={() => { setSelectedMusicTrack(null); stopPreview(); }}
+                              className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${
+                                selectedMusicTrack === null
+                                  ? "border-violet-500 bg-violet-500/10"
+                                  : "border-white/[0.07] bg-white/[0.03] hover:border-violet-500/40"
+                              }`}
+                            >
+                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-sm ${
+                                selectedMusicTrack === null ? "bg-violet-500/20" : "bg-white/[0.05]"
+                              }`}>🔇</div>
+                              <span className={`flex-1 text-sm font-medium ${selectedMusicTrack === null ? "text-violet-300" : "text-white/60"}`}>
+                                No music
+                              </span>
+                              {selectedMusicTrack === null && (
+                                <div className="w-4 h-4 rounded-full bg-violet-500 flex items-center justify-center flex-shrink-0">
+                                  <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                                    <path d="M1.5 4l1.5 1.5L6.5 2" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                  </svg>
+                                </div>
+                              )}
+                            </button>
+                            {MUSIC_TRACKS.map((track) => (
+                              <div key={track.id} className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
+                                selectedMusicTrack === track.id
+                                  ? "border-violet-500 bg-violet-500/10"
+                                  : "border-white/[0.07] bg-white/[0.03]"
+                              }`}>
+                                <button
+                                  onClick={() => togglePreview(track.id, track.src)}
+                                  className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${
+                                    previewingTrack === track.id
+                                      ? "bg-violet-500 text-white"
+                                      : "bg-white/[0.05] text-white/50 hover:bg-white/[0.1] hover:text-white"
+                                  }`}
+                                >
+                                  {previewingTrack === track.id ? (
+                                    <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
+                                      <rect x="2" y="1" width="2.5" height="8" rx="0.5"/>
+                                      <rect x="5.5" y="1" width="2.5" height="8" rx="0.5"/>
+                                    </svg>
+                                  ) : (
+                                    <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
+                                      <path d="M2 1.5L8.5 5 2 8.5V1.5z"/>
+                                    </svg>
+                                  )}
+                                </button>
+                                <span className={`flex-1 text-sm font-medium ${
+                                  selectedMusicTrack === track.id ? "text-violet-300" : "text-white/60"
+                                }`}>{track.label}</span>
+                                <button
+                                  onClick={() => { setSelectedMusicTrack(track.id); stopPreview(); }}
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex-shrink-0 ${
+                                    selectedMusicTrack === track.id
+                                      ? "bg-violet-500/20 border border-violet-500/40 text-violet-300"
+                                      : "bg-white/[0.05] border border-white/10 text-white/50 hover:text-white hover:border-white/20"
+                                  }`}
+                                >
+                                  {selectedMusicTrack === track.id ? "Selected" : "Select"}
+                                </button>
+                              </div>
+                            ))}
+                            <div className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
+                              selectedMusicTrack === "custom"
+                                ? "border-violet-500 bg-violet-500/10"
+                                : "border-white/[0.07] bg-white/[0.03]"
+                            }`}>
+                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-sm ${
+                                selectedMusicTrack === "custom" ? "bg-violet-500/20" : "bg-white/[0.05]"
+                              }`}>🎵</div>
+                              <div className="flex-1 min-w-0">
+                                <p className={`text-sm font-medium truncate ${selectedMusicTrack === "custom" ? "text-violet-300" : "text-white/60"}`}>
+                                  {customMusicFile ? customMusicFile.name : "Upload your own"}
+                                </p>
+                                {customMusicFile && (
+                                  <p className="text-[10px] text-white/30 mt-0.5">{(customMusicFile.size / 1024 / 1024).toFixed(1)} MB · MP3</p>
+                                )}
+                              </div>
+                              <button
+                                onClick={() => musicFileRef.current?.click()}
+                                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white/[0.05] border border-white/10 text-white/50 hover:text-white hover:border-white/20 transition-colors flex-shrink-0"
+                              >
+                                Browse
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Render button + progress */}
+                        {!reelOutputUrl && (
+                          <div>
+                            <button
+                              disabled={reelRendering || (reelTemplate !== "fade-slideshow" && reelTemplate !== "multi-motion" && !selectedVideoImage)}
+                              onClick={renderReel}
+                              className={`w-full py-3.5 rounded-xl text-sm font-medium transition-colors ${
+                                !reelRendering && (reelTemplate === "fade-slideshow" || reelTemplate === "multi-motion" || selectedVideoImage)
+                                  ? "bg-violet-600 hover:bg-violet-500 text-white"
+                                  : "bg-white/[0.04] text-white/20 cursor-not-allowed"
+                              }`}
+                            >
+                              {reelRendering ? "Rendering…" : "Render Reel"}
+                            </button>
+                            {reelRendering && (
+                              <div className="mt-4 space-y-2">
+                                <div className="bg-white/[0.06] rounded-full h-[3px] overflow-hidden">
+                                  <div
+                                    className="bg-gradient-to-r from-violet-600 to-fuchsia-500 h-full rounded-full transition-all duration-300"
+                                    style={{ width: `${reelRenderProgress}%` }}
+                                  />
+                                </div>
+                                <div className="flex justify-between text-xs text-white/40">
+                                  <span>Rendering frames…</span>
+                                  <span>{reelRenderProgress}%</span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Video preview + Download */}
+                        {reelOutputUrl && (
+                          <div className="space-y-4">
+                            {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+                            <video src={reelOutputUrl} controls autoPlay loop className="w-full rounded-2xl bg-black" />
+                            <div className="flex gap-3">
+                              <a
+                                href={reelOutputUrl}
+                                download={REEL_FORMATS.find((f) => f.id === reelFormat)!.filename}
+                                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium bg-violet-600 hover:bg-violet-500 text-white transition-colors"
+                              >
+                                <DownloadIcon />
+                                Download
+                              </a>
+                              <button
+                                onClick={() => { setReelOutputUrl(null); setReelRenderProgress(0); }}
+                                className="flex-1 py-3 rounded-xl text-sm font-medium border border-white/[0.07] text-white/60 hover:text-white hover:border-white/20 transition-colors"
+                              >
+                                ← Render Again
+                              </button>
+                            </div>
+                          </div>
+                        )}
 
                       </>}
 
@@ -2764,28 +2703,81 @@ export default function DashboardPage() {
                               ))}
                             </div>
 
-                            {/* Generated image thumbnails */}
-                            <div className="flex gap-2 mt-3">
-                              {project.images.slice(0, 4).map((img, i) => (
-                                <div
-                                  key={img.id}
-                                  className="w-10 h-14 rounded-lg overflow-hidden bg-white/[0.05] flex-shrink-0"
+                            {/* Tabs */}
+                            <div className="flex gap-2 mt-3 mb-3">
+                              {["Generated", "Original", "Reels"].map((tab) => (
+                                <button
+                                  key={tab}
+                                  onClick={() => setActiveProjectTab((prev) => ({ ...prev, [project.id]: tab }))}
+                                  className={`text-xs px-3 py-1 rounded-full transition-colors ${
+                                    (activeProjectTab[project.id] || "Generated") === tab
+                                      ? "bg-violet-600 text-white"
+                                      : "bg-white/5 text-white/50 hover:text-white"
+                                  }`}
                                 >
-                                  <img
-                                    src={getImageUrl(img.imageUrl)}
-                                    alt={`Generated ${i + 1}`}
-                                    className="w-full h-full object-cover"
-                                  />
-                                </div>
+                                  {tab}
+                                </button>
                               ))}
-                              {project.images.length > 4 && (
-                                <div className="w-10 h-14 rounded-lg bg-white/[0.05] flex items-center justify-center flex-shrink-0">
-                                  <span className="text-[10px] text-white/40">
-                                    +{project.images.length - 4}
-                                  </span>
-                                </div>
-                              )}
                             </div>
+
+                            {/* Tab: Generated thumbnails */}
+                            {(activeProjectTab[project.id] || "Generated") === "Generated" && (
+                              <div className="flex gap-2">
+                                {project.images.slice(0, 4).map((img, i) => (
+                                  <div
+                                    key={img.id}
+                                    className="w-10 h-14 rounded-lg overflow-hidden bg-white/[0.05] flex-shrink-0"
+                                  >
+                                    <img
+                                      src={getImageUrl(img.imageUrl)}
+                                      alt={`Generated ${i + 1}`}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  </div>
+                                ))}
+                                {project.images.length > 4 && (
+                                  <div className="w-10 h-14 rounded-lg bg-white/[0.05] flex items-center justify-center flex-shrink-0">
+                                    <span className="text-[10px] text-white/40">
+                                      +{project.images.length - 4}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Tab: Original */}
+                            {activeProjectTab[project.id] === "Original" && (
+                              <div className="mt-1">
+                                {project.uploads[0] ? (
+                                  <img
+                                    src={getImageUrl(project.uploads[0].imageUrl)}
+                                    alt="Original garment"
+                                    className="h-28 rounded-xl object-cover"
+                                  />
+                                ) : (
+                                  <p className="text-xs text-white/30">No original image</p>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Tab: Reels */}
+                            {activeProjectTab[project.id] === "Reels" && (
+                              <div className="mt-1 space-y-2">
+                                {project.reels.length > 0 ? (
+                                  project.reels.map((reel) => (
+                                    <video
+                                      key={reel.id}
+                                      src={reel.videoUrl}
+                                      controls
+                                      className="w-full rounded-lg"
+                                      style={{ maxHeight: "300px" }}
+                                    />
+                                  ))
+                                ) : (
+                                  <p className="text-xs text-white/30">No reels yet for this project</p>
+                                )}
+                              </div>
+                            )}
 
                             {/* Action buttons */}
                             <div className="flex gap-2 mt-4">
@@ -2810,6 +2802,23 @@ export default function DashboardPage() {
                                 ✎ Edit &amp; Regenerate
                               </button>
                               <button
+                                onClick={() => {
+                                  const projectImages = project.images.map(img => getImageUrl(img.imageUrl));
+                                  setResults(projectImages);
+                                  setAiVideoImages(projectImages);
+                                  setAiVideoOutputUrls([]);
+                                  setAiVideoProgress(0);
+                                  setAiVideoGenerating(false);
+                                  setAiVideoError(null);
+                                  setReelMode("fashn");
+                                  setActiveExportTab("reels");
+                                  setActiveNav("upload");
+                                }}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.08] text-white/50 hover:text-white/80 transition-colors"
+                              >
+                                🎬 Create Reel
+                              </button>
+                              <button
                                 onClick={() => openShareModal(project)}
                                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.08] text-white/50 hover:text-white/80 transition-colors"
                               >
@@ -2820,7 +2829,7 @@ export default function DashboardPage() {
                         </div>
 
                         {/* Expanded full image grid */}
-                        {isExpanded && project.images.length > 0 && (
+                        {(activeProjectTab[project.id] || "Generated") === "Generated" && isExpanded && project.images.length > 0 && (
                           <div className="border-t border-white/[0.07] p-5">
                             <div className="grid grid-cols-3 gap-3">
                               {project.images.map((img, i) => (
@@ -2920,7 +2929,7 @@ export default function DashboardPage() {
                         )}
 
                         {/* Expand / collapse toggle */}
-                        {project.images.length > 0 && (
+                        {(activeProjectTab[project.id] || "Generated") === "Generated" && project.images.length > 0 && (
                           <button
                             onClick={() =>
                               setExpandedProjectId(isExpanded ? null : project.id)
