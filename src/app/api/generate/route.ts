@@ -92,11 +92,36 @@ function buildPrompt(
   return `${ageLabel}${suitStr}, ${occasion.toLowerCase()} setting, ${background.toLowerCase()} background, ${catHint}${sideStr ? ", " + sideStr : ""}, professional fashion photography, high quality`;
 }
 
-async function uploadToCloudinary(imageUrl: string): Promise<string> {
+async function uploadToCloudinary(
+  imageUrl: string,
+  brandingLogoPublicId?: string | null,
+  brandingPosition?: string | null,
+  brandingSize?: number | null,
+  brandingOpacity?: number | null,
+): Promise<string> {
   const result = await cloudinary.uploader.upload(imageUrl, {
     folder: "dripshoots",
     resource_type: "image",
   });
+
+  if (brandingLogoPublicId) {
+    const brandedUrl = cloudinary.url(result.public_id, {
+      transformation: [
+        {
+          overlay: brandingLogoPublicId.replace(/\//g, ":"),
+          gravity: brandingPosition || "south_east",
+          width: brandingSize || 150,
+          opacity: brandingOpacity || 70,
+          x: 20,
+          y: 20,
+        },
+        { flags: "layer_apply" },
+      ],
+      secure: true,
+    });
+    return brandedUrl;
+  }
+
   return result.secure_url;
 }
 
@@ -167,6 +192,8 @@ export async function POST(request: Request) {
     create: { clerkId: userId, email },
     update: { email },
   });
+
+  const { brandingLogoPublicId, brandingPosition, brandingSize, brandingOpacity } = user;
 
   const body = await request.json();
   console.log("[/api/generate] request body:", JSON.stringify({ ...body, garmentImageUrl: body.garmentImageUrl }));
@@ -247,7 +274,13 @@ export async function POST(request: Request) {
     // Upload each result to Cloudinary
     for (const url of generatedUrls) {
       try {
-        const cloudinaryUrl = await uploadToCloudinary(url);
+        const cloudinaryUrl = await uploadToCloudinary(
+          url,
+          brandingLogoPublicId,
+          brandingPosition,
+          brandingSize,
+          brandingOpacity,
+        );
         allImages.push(cloudinaryUrl);
       } catch (upErr) {
         console.error("[/api/generate] Cloudinary upload failed:", url, upErr);
