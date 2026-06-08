@@ -520,6 +520,12 @@ export default function DashboardPage() {
 
   // ── WooCommerce / Integrations state ──────────────────────────────────────
   const [activeIntegration, setActiveIntegration] = useState<string | null>(null);
+  const [settingsTab, setSettingsTab] = useState<"integrations" | "branding" | "shopify" | "woocommerce">("integrations")
+  const [shopifyConnected, setShopifyConnected] = useState(false)
+  const [shopifyForm, setShopifyForm] = useState({ siteUrl: "", accessToken: "" })
+  const [shopifyConnecting, setShopifyConnecting] = useState(false)
+  const [shopifyError, setShopifyError] = useState("")
+  const [shopifyShowToken, setShopifyShowToken] = useState(false)
   const [wcConnected, setWcConnected]             = useState(false);
   const [wcForm, setWcForm]                       = useState({ siteUrl: "", consumerKey: "", consumerSecret: "", appPassword: "" });
   const [wcConnecting, setWcConnecting]           = useState(false);
@@ -528,7 +534,17 @@ export default function DashboardPage() {
   const [wcShowAppPw, setWcShowAppPw]             = useState(false);
 
   // ── WooCommerce Share Modal state ─────────────────────────────────────────
-  const [shareTab, setShareTab]                           = useState<"social" | "woocommerce">("social");
+  const [shareTab, setShareTab]                           = useState<"social" | "woocommerce" | "shopify">("social");
+  const [shopifyShareConnected, setShopifyShareConnected] = useState<boolean | null>(null)
+  const [shopifyTitle, setShopifyTitle]                   = useState("")
+  const [shopifyDescription, setShopifyDescription]       = useState("")
+  const [shopifyPrice, setShopifyPrice]                   = useState("")
+  const [shopifyTags, setShopifyTags]                     = useState("")
+  const [shopifyStatus, setShopifyStatus]                 = useState<"draft" | "active">("draft")
+  const [shopifyImages, setShopifyImages]                 = useState<string[]>([])
+  const [shopifyPublishing, setShopifyPublishing]         = useState(false)
+  const [shopifyProductUrl, setShopifyProductUrl]         = useState("")
+  const [shopifyPublishError, setShopifyPublishError]     = useState("")
   const [wcShareConnected, setWcShareConnected]           = useState<boolean | null>(null);
   const [wcFeaturedImage, setWcFeaturedImage]             = useState<string>("");
   const [wcGalleryImages, setWcGalleryImages]             = useState<string[]>([]);
@@ -558,6 +574,15 @@ export default function DashboardPage() {
   const [wcAttrValueInput, setWcAttrValueInput]           = useState("");
   const [creditInfo, setCreditInfo] = useState<{ plan: string; credits: number; creditsUsed: number; creditsLimit: number; percentage: number } | null>(null);
 
+  // ── Branding state ────────────────────────────────────────────────────────
+  const [brandingLogoUrl, setBrandingLogoUrl] = useState<string | null>(null)
+  const [brandingPosition, setBrandingPosition] = useState("south_east")
+  const [brandingSize, setBrandingSize] = useState(150)
+  const [brandingOpacity, setBrandingOpacity] = useState(70)
+  const [brandingUploading, setBrandingUploading] = useState(false)
+  const [brandingSaved, setBrandingSaved] = useState(false)
+  const brandingFileRef = useRef<HTMLInputElement>(null)
+
   useEffect(() => {
     fetch("/api/credits").then((r) => r.json()).then(setCreditInfo);
   }, []);
@@ -572,6 +597,20 @@ export default function DashboardPage() {
       .finally(() => setProjectsLoading(false));
   }, [activeNav]);
 
+  // Load branding settings when Settings tab is opened
+  useEffect(() => {
+    if (activeNav !== "settings") return
+    fetch("/api/settings/branding")
+      .then(r => r.json())
+      .then(data => {
+        if (data.brandingLogoUrl) setBrandingLogoUrl(data.brandingLogoUrl)
+        if (data.brandingPosition) setBrandingPosition(data.brandingPosition)
+        if (data.brandingSize) setBrandingSize(data.brandingSize)
+        if (data.brandingOpacity) setBrandingOpacity(data.brandingOpacity)
+      })
+      .catch(() => {})
+  }, [activeNav])
+
   // Load WooCommerce connection status when Settings tab is opened
   useEffect(() => {
     if (activeNav !== "settings") return;
@@ -584,6 +623,15 @@ export default function DashboardPage() {
         }
       })
       .catch(() => {});
+    fetch("/api/settings/shopify")
+      .then(r => r.json())
+      .then(data => {
+        if (data.connected) {
+          setShopifyConnected(true)
+          setShopifyForm(f => ({ ...f, siteUrl: data.shopifySiteUrl }))
+        }
+      })
+      .catch(() => {})
   }, [activeNav]);
 
   // Check WC connection when WooCommerce share tab is first opened
@@ -602,6 +650,15 @@ export default function DashboardPage() {
       })
       .catch(() => setWcShareConnected(false));
   }, [shareTab, shareProject, wcShareConnected]);
+
+  // Check Shopify connection when Shopify share tab is first opened
+  useEffect(() => {
+    if (shareTab !== "shopify" || !shareProject || shopifyShareConnected !== null) return
+    fetch("/api/settings/shopify")
+      .then(r => r.json())
+      .then(data => setShopifyShareConnected(!!data.connected))
+      .catch(() => setShopifyShareConnected(false))
+  }, [shareTab, shareProject, shopifyShareConnected])
 
   useEffect(() => {
     if (wizardStep === 11 && gender && ethnicity && occasion && ageGroup && background) {
@@ -844,6 +901,17 @@ export default function DashboardPage() {
     setWcAttrCustomName("");
     setWcAttrValues([]);
     setWcAttrValueInput("");
+    // Reset Shopify share state
+    setShopifyShareConnected(null)
+    setShopifyTitle("")
+    setShopifyDescription("")
+    setShopifyPrice("")
+    setShopifyTags("")
+    setShopifyStatus("draft")
+    setShopifyImages([])
+    setShopifyPublishing(false)
+    setShopifyProductUrl("")
+    setShopifyPublishError("")
   };
 
   const toggleShareImage = (url: string) => {
@@ -2977,7 +3045,7 @@ export default function DashboardPage() {
             </Container>
           )}
 
-          {/* Settings — Integrations */}
+          {/* Settings */}
           {activeNav === "settings" && (
             <Container className="py-10">
               {/* Header */}
@@ -2987,168 +3055,327 @@ export default function DashboardPage() {
                 <p className="text-white/40 text-sm mt-1">Connect your store and social platforms.</p>
               </div>
 
-              {/* Integration cards grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="flex gap-6 min-h-[500px]">
 
-                {/* ── WooCommerce card (active) ── */}
-                <div className="border border-white/[0.07] rounded-2xl overflow-hidden">
-                  {/* Card header */}
-                  <div className="p-5 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">🛍️</span>
-                      <div>
-                        <p className="font-semibold text-sm">WooCommerce</p>
-                        <p className="text-xs mt-0.5 flex items-center gap-1">
-                          {wcConnected ? (
-                            <>
-                              <span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block" />
-                              <span className="text-green-400">Connected</span>
-                            </>
-                          ) : (
-                            <>
-                              <span className="w-1.5 h-1.5 rounded-full bg-white/20 inline-block" />
-                              <span className="text-white/40">Not connected</span>
-                            </>
-                          )}
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => setActiveIntegration(activeIntegration === "woo" ? null : "woo")}
-                      className={`text-xs px-3 py-1.5 rounded-lg border transition-all ${
-                        wcConnected
-                          ? "border-green-500/30 text-green-400 bg-green-500/10"
-                          : "border-violet-500/50 text-violet-300 bg-violet-500/10 hover:bg-violet-500/20"
-                      }`}
-                    >
-                      {wcConnected ? "Connected ✓" : "Connect"}
-                    </button>
-                  </div>
-
-                  {/* Inline expand form */}
-                  {activeIntegration === "woo" && (
-                    <div className="border-t border-white/[0.07] p-5 bg-white/[0.02] space-y-3">
-                      {/* Store URL */}
-                      <div>
-                        <label className="text-xs text-white/40 mb-1 block">Store URL</label>
-                        <input
-                          type="url"
-                          placeholder="https://yourstore.com"
-                          value={wcForm.siteUrl}
-                          onChange={(e) => setWcForm({ ...wcForm, siteUrl: e.target.value })}
-                          className="w-full bg-white/[0.03] border border-white/[0.07] rounded-lg px-3 py-2 text-sm outline-none focus:border-violet-500/50 placeholder:text-white/20"
-                        />
-                      </div>
-                      {/* Consumer Key */}
-                      <div>
-                        <label className="text-xs text-white/40 mb-1 block">Consumer Key</label>
-                        <input
-                          type="text"
-                          placeholder="ck_..."
-                          value={wcForm.consumerKey}
-                          onChange={(e) => setWcForm({ ...wcForm, consumerKey: e.target.value })}
-                          className="w-full bg-white/[0.03] border border-white/[0.07] rounded-lg px-3 py-2 text-sm outline-none focus:border-violet-500/50 placeholder:text-white/20"
-                        />
-                      </div>
-                      {/* Consumer Secret */}
-                      <div>
-                        <label className="text-xs text-white/40 mb-1 block">Consumer Secret</label>
-                        <div className="relative">
-                          <input
-                            type={wcShowSecret ? "text" : "password"}
-                            placeholder="cs_..."
-                            value={wcForm.consumerSecret}
-                            onChange={(e) => setWcForm({ ...wcForm, consumerSecret: e.target.value })}
-                            className="w-full bg-white/[0.03] border border-white/[0.07] rounded-lg px-3 py-2 pr-14 text-sm outline-none focus:border-violet-500/50 placeholder:text-white/20"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setWcShowSecret(!wcShowSecret)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 text-xs"
-                          >
-                            {wcShowSecret ? "Hide" : "Show"}
-                          </button>
-                        </div>
-                      </div>
-                      {/* App Password */}
-                      <div>
-                        <label className="text-xs text-white/40 mb-1 block">App Password</label>
-                        <div className="relative">
-                          <input
-                            type={wcShowAppPw ? "text" : "password"}
-                            placeholder="xxxx xxxx xxxx xxxx"
-                            value={wcForm.appPassword}
-                            onChange={(e) => setWcForm({ ...wcForm, appPassword: e.target.value })}
-                            className="w-full bg-white/[0.03] border border-white/[0.07] rounded-lg px-3 py-2 pr-14 text-sm outline-none focus:border-violet-500/50 placeholder:text-white/20"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setWcShowAppPw(!wcShowAppPw)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 text-xs"
-                          >
-                            {wcShowAppPw ? "Hide" : "Show"}
-                          </button>
-                        </div>
-                      </div>
-                      {/* Error */}
-                      {wcError && <p className="text-red-400 text-xs">{wcError}</p>}
-                      {/* Submit */}
+                {/* Left vertical tabs */}
+                <div className="w-48 flex-shrink-0">
+                  <div className="flex flex-col gap-1">
+                    {[
+                      { id: "integrations", label: "Integrations", icon: "🔌" },
+                      { id: "woocommerce",  label: "WooCommerce",  icon: "🛍️" },
+                      { id: "shopify",      label: "Shopify",      icon: "🟦" },
+                      { id: "branding",     label: "Brand Watermark", icon: "🏷️" },
+                    ].map(tab => (
                       <button
-                        disabled={wcConnecting}
-                        onClick={async () => {
-                          setWcConnecting(true);
-                          setWcError("");
-                          const res = await fetch("/api/settings/woocommerce", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({
-                              wpSiteUrl: wcForm.siteUrl,
-                              wpConsumerKey: wcForm.consumerKey,
-                              wpConsumerSecret: wcForm.consumerSecret,
-                              wpAppPassword: wcForm.appPassword,
-                            }),
-                          });
-                          const data = await res.json();
-                          setWcConnecting(false);
-                          if (data.success) {
-                            setWcConnected(true);
-                            setActiveIntegration(null);
-                          } else {
-                            setWcError(data.error ?? "Something went wrong.");
-                          }
-                        }}
-                        className="w-full py-2 rounded-lg bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-sm font-medium transition-colors"
+                        key={tab.id}
+                        onClick={() => setSettingsTab(tab.id as "integrations" | "branding" | "shopify" | "woocommerce")}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-left transition-all ${
+                          settingsTab === tab.id
+                            ? "bg-violet-600/10 text-violet-400 border border-violet-500/20"
+                            : "text-white/40 hover:text-white/70 hover:bg-white/[0.03]"
+                        }`}
                       >
-                        {wcConnecting ? "Connecting…" : "Connect Store"}
+                        <span>{tab.icon}</span>
+                        <span>{tab.label}</span>
                       </button>
-                    </div>
-                  )}
+                    ))}
+                  </div>
                 </div>
 
-                {/* ── Coming Soon cards ── */}
-                {[
-                  { icon: "📘", name: "Facebook" },
-                  { icon: "📸", name: "Instagram" },
-                  { icon: "🎵", name: "TikTok" },
-                  { icon: "🟦", name: "Shopify" },
-                ].map(({ icon, name }) => (
-                  <div
-                    key={name}
-                    className="border border-white/[0.04] rounded-2xl p-5 opacity-50 cursor-not-allowed"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <span className="text-2xl">{icon}</span>
-                        <p className="font-semibold text-sm">{name}</p>
-                      </div>
-                      <span className="text-xs px-2 py-1 rounded-md bg-white/[0.05] border border-white/[0.07] text-white/40">
-                        Coming Soon
-                      </span>
-                    </div>
-                  </div>
-                ))}
+                {/* Right content */}
+                <div className="flex-1 min-w-0">
 
+                  {/* Integrations overview */}
+                  {settingsTab === "integrations" && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="border border-white/[0.07] rounded-2xl p-5 flex items-center justify-between cursor-pointer hover:border-violet-500/30 transition-all"
+                        onClick={() => setSettingsTab("woocommerce")}>
+                        <div className="flex items-center gap-3">
+                          <span className="text-2xl">🛍️</span>
+                          <div>
+                            <p className="font-semibold text-sm">WooCommerce</p>
+                            <p className="text-xs mt-0.5 flex items-center gap-1">
+                              {wcConnected
+                                ? <><span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block"/><span className="text-green-400">Connected</span></>
+                                : <><span className="w-1.5 h-1.5 rounded-full bg-white/20 inline-block"/><span className="text-white/40">Not connected</span></>
+                              }
+                            </p>
+                          </div>
+                        </div>
+                        <span className="text-white/30 text-xs">→</span>
+                      </div>
+
+                      <div className="border border-white/[0.07] rounded-2xl p-5 flex items-center justify-between cursor-pointer hover:border-violet-500/30 transition-all"
+                        onClick={() => setSettingsTab("shopify")}>
+                        <div className="flex items-center gap-3">
+                          <span className="text-2xl">🟦</span>
+                          <div>
+                            <p className="font-semibold text-sm">Shopify</p>
+                            <p className="text-xs mt-0.5 flex items-center gap-1">
+                              {shopifyConnected
+                                ? <><span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block"/><span className="text-green-400">Connected</span></>
+                                : <><span className="w-1.5 h-1.5 rounded-full bg-white/20 inline-block"/><span className="text-white/40">Not connected</span></>
+                              }
+                            </p>
+                          </div>
+                        </div>
+                        <span className="text-white/30 text-xs">→</span>
+                      </div>
+
+                      <div className="border border-white/[0.07] rounded-2xl p-5 flex items-center justify-between cursor-pointer hover:border-violet-500/30 transition-all"
+                        onClick={() => setSettingsTab("branding")}>
+                        <div className="flex items-center gap-3">
+                          <span className="text-2xl">🏷️</span>
+                          <div>
+                            <p className="font-semibold text-sm">Brand Watermark</p>
+                            <p className="text-xs mt-0.5 flex items-center gap-1">
+                              {brandingLogoUrl
+                                ? <><span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block"/><span className="text-green-400">Logo uploaded</span></>
+                                : <><span className="w-1.5 h-1.5 rounded-full bg-white/20 inline-block"/><span className="text-white/40">Not set</span></>
+                              }
+                            </p>
+                          </div>
+                        </div>
+                        <span className="text-white/30 text-xs">→</span>
+                      </div>
+
+                      {[
+                        { icon: "📘", name: "Facebook" },
+                        { icon: "📸", name: "Instagram" },
+                        { icon: "🎵", name: "TikTok" },
+                      ].map(({ icon, name }) => (
+                        <div key={name} className="border border-white/[0.04] rounded-2xl p-5 opacity-50 cursor-not-allowed flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <span className="text-2xl">{icon}</span>
+                            <p className="font-semibold text-sm">{name}</p>
+                          </div>
+                          <span className="text-xs px-2 py-1 rounded-md bg-white/[0.05] border border-white/[0.07] text-white/40">Coming Soon</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* WooCommerce tab */}
+                  {settingsTab === "woocommerce" && (
+                    <div className="max-w-md">
+                      <div className="flex items-center gap-3 mb-6">
+                        <button onClick={() => setSettingsTab("integrations")} className="text-white/40 hover:text-white text-sm">← Back</button>
+                        <h2 className="text-lg font-semibold">WooCommerce</h2>
+                        {wcConnected && <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/15 border border-green-500/30 text-green-400">Connected</span>}
+                      </div>
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-xs text-white/40 mb-1 block">Store URL</label>
+                          <input type="url" placeholder="https://yourstore.com" value={wcForm.siteUrl}
+                            onChange={e => setWcForm({ ...wcForm, siteUrl: e.target.value })}
+                            className="w-full bg-white/[0.03] border border-white/[0.07] rounded-lg px-3 py-2 text-sm outline-none focus:border-violet-500/50 placeholder:text-white/20 text-white"/>
+                        </div>
+                        <div>
+                          <label className="text-xs text-white/40 mb-1 block">Consumer Key</label>
+                          <input type="text" placeholder="ck_..." value={wcForm.consumerKey}
+                            onChange={e => setWcForm({ ...wcForm, consumerKey: e.target.value })}
+                            className="w-full bg-white/[0.03] border border-white/[0.07] rounded-lg px-3 py-2 text-sm outline-none focus:border-violet-500/50 placeholder:text-white/20 text-white"/>
+                        </div>
+                        <div>
+                          <label className="text-xs text-white/40 mb-1 block">Consumer Secret</label>
+                          <div className="relative">
+                            <input type={wcShowSecret ? "text" : "password"} placeholder="cs_..." value={wcForm.consumerSecret}
+                              onChange={e => setWcForm({ ...wcForm, consumerSecret: e.target.value })}
+                              className="w-full bg-white/[0.03] border border-white/[0.07] rounded-lg px-3 py-2 pr-14 text-sm outline-none focus:border-violet-500/50 placeholder:text-white/20 text-white"/>
+                            <button type="button" onClick={() => setWcShowSecret(!wcShowSecret)}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 text-xs">
+                              {wcShowSecret ? "Hide" : "Show"}
+                            </button>
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-xs text-white/40 mb-1 block">App Password</label>
+                          <div className="relative">
+                            <input type={wcShowAppPw ? "text" : "password"} placeholder="xxxx xxxx xxxx xxxx" value={wcForm.appPassword}
+                              onChange={e => setWcForm({ ...wcForm, appPassword: e.target.value })}
+                              className="w-full bg-white/[0.03] border border-white/[0.07] rounded-lg px-3 py-2 pr-14 text-sm outline-none focus:border-violet-500/50 placeholder:text-white/20 text-white"/>
+                            <button type="button" onClick={() => setWcShowAppPw(!wcShowAppPw)}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 text-xs">
+                              {wcShowAppPw ? "Hide" : "Show"}
+                            </button>
+                          </div>
+                        </div>
+                        {wcError && <p className="text-red-400 text-xs">{wcError}</p>}
+                        <button
+                          disabled={wcConnecting}
+                          onClick={async () => {
+                            setWcConnecting(true); setWcError("");
+                            const res = await fetch("/api/settings/woocommerce", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ wpSiteUrl: wcForm.siteUrl, wpConsumerKey: wcForm.consumerKey, wpConsumerSecret: wcForm.consumerSecret, wpAppPassword: wcForm.appPassword }),
+                            });
+                            const data = await res.json();
+                            setWcConnecting(false);
+                            if (data.success) { setWcConnected(true); } else { setWcError(data.error ?? "Something went wrong."); }
+                          }}
+                          className="w-full py-2 rounded-lg bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-sm font-medium transition-colors"
+                        >
+                          {wcConnecting ? "Connecting…" : wcConnected ? "Update Connection" : "Connect Store"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Shopify tab */}
+                  {settingsTab === "shopify" && (
+                    <div className="max-w-md">
+                      <div className="flex items-center gap-3 mb-6">
+                        <button onClick={() => setSettingsTab("integrations")} className="text-white/40 hover:text-white text-sm">← Back</button>
+                        <h2 className="text-lg font-semibold">Shopify</h2>
+                        {shopifyConnected && <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/15 border border-green-500/30 text-green-400">Connected</span>}
+                      </div>
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-xs text-white/40 mb-1 block">Store URL</label>
+                          <input type="text" placeholder="yourstore.myshopify.com" value={shopifyForm.siteUrl}
+                            onChange={e => setShopifyForm({ ...shopifyForm, siteUrl: e.target.value })}
+                            className="w-full bg-white/[0.03] border border-white/[0.07] rounded-lg px-3 py-2 text-sm outline-none focus:border-violet-500/50 placeholder:text-white/20 text-white"/>
+                        </div>
+                        <div>
+                          <label className="text-xs text-white/40 mb-1 block">Access Token</label>
+                          <div className="relative">
+                            <input type={shopifyShowToken ? "text" : "password"} placeholder="shpat_xxxxxxxxxxxx" value={shopifyForm.accessToken}
+                              onChange={e => setShopifyForm({ ...shopifyForm, accessToken: e.target.value })}
+                              className="w-full bg-white/[0.03] border border-white/[0.07] rounded-lg px-3 py-2 pr-14 text-sm outline-none focus:border-violet-500/50 placeholder:text-white/20 text-white"/>
+                            <button type="button" onClick={() => setShopifyShowToken(!shopifyShowToken)}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 text-xs">
+                              {shopifyShowToken ? "Hide" : "Show"}
+                            </button>
+                          </div>
+                          <p className="text-[10px] text-white/20 mt-1">Shopify Admin → Settings → Apps → Develop apps → Create app → Admin API access token</p>
+                        </div>
+                        {shopifyError && <p className="text-red-400 text-xs">{shopifyError}</p>}
+                        <button
+                          disabled={shopifyConnecting}
+                          onClick={async () => {
+                            setShopifyConnecting(true); setShopifyError("");
+                            const res = await fetch("/api/settings/shopify", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ shopifySiteUrl: shopifyForm.siteUrl, shopifyAccessToken: shopifyForm.accessToken })
+                            });
+                            const data = await res.json();
+                            setShopifyConnecting(false);
+                            if (data.success) { setShopifyConnected(true); } else { setShopifyError(data.error ?? "Connection failed."); }
+                          }}
+                          className="w-full py-2 rounded-lg bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-sm font-medium transition-colors"
+                        >
+                          {shopifyConnecting ? "Connecting…" : shopifyConnected ? "Update Connection" : "Connect Store"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Branding tab */}
+                  {settingsTab === "branding" && (
+                    <div className="max-w-md">
+                      <div className="flex items-center gap-3 mb-6">
+                        <button onClick={() => setSettingsTab("integrations")} className="text-white/40 hover:text-white text-sm">← Back</button>
+                        <h2 className="text-lg font-semibold">Brand Watermark</h2>
+                      </div>
+                      <div className="space-y-4">
+                        <div>
+                          <p className="text-xs text-white/40 mb-2">Logo (PNG with transparency recommended)</p>
+                          <div onClick={() => brandingFileRef.current?.click()}
+                            className="w-full h-24 rounded-xl border border-dashed border-white/10 hover:border-violet-500/40 flex items-center justify-center cursor-pointer transition-colors">
+                            {brandingLogoUrl
+                              ? <img src={brandingLogoUrl} alt="Brand logo" className="h-14 object-contain"/>
+                              : <p className="text-xs text-white/30">Click to upload logo</p>
+                            }
+                          </div>
+                          <input ref={brandingFileRef} type="file" accept="image/png,image/svg+xml,image/webp" className="hidden"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0]; if (!file) return;
+                              setBrandingUploading(true);
+                              const form = new FormData();
+                              form.append("file", file);
+                              form.append("position", brandingPosition);
+                              form.append("size", String(brandingSize));
+                              form.append("opacity", String(brandingOpacity));
+                              const res = await fetch("/api/settings/branding", { method: "POST", body: form });
+                              const data = await res.json();
+                              if (data.brandingLogoUrl) setBrandingLogoUrl(data.brandingLogoUrl);
+                              setBrandingUploading(false); setBrandingSaved(true);
+                              setTimeout(() => setBrandingSaved(false), 2000);
+                            }}
+                          />
+                          {brandingUploading && <p className="text-xs text-violet-400 mt-1">Uploading...</p>}
+                          {brandingSaved && <p className="text-xs text-green-400 mt-1">✓ Saved!</p>}
+                        </div>
+
+                        <div>
+                          <p className="text-xs text-white/40 mb-2">Position</p>
+                          <div className="grid grid-cols-2 gap-2">
+                            {[
+                              { id: "north_west", label: "Top Left" },
+                              { id: "north_east", label: "Top Right" },
+                              { id: "south_west", label: "Bottom Left" },
+                              { id: "south_east", label: "Bottom Right" },
+                            ].map(pos => (
+                              <button key={pos.id} onClick={() => setBrandingPosition(pos.id)}
+                                className={`py-2 rounded-lg text-xs border transition-all ${
+                                  brandingPosition === pos.id
+                                    ? "border-violet-500 bg-violet-500/10 text-violet-300"
+                                    : "border-white/[0.07] text-white/50 hover:border-violet-500/40"
+                                }`}>
+                                {pos.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div>
+                          <p className="text-xs text-white/40 mb-2">Size: {brandingSize}px</p>
+                          <input type="range" min="50" max="300" value={brandingSize}
+                            onChange={e => setBrandingSize(parseInt(e.target.value))}
+                            className="w-full accent-violet-500"/>
+                        </div>
+
+                        <div>
+                          <p className="text-xs text-white/40 mb-2">Opacity: {brandingOpacity}%</p>
+                          <input type="range" min="10" max="100" value={brandingOpacity}
+                            onChange={e => setBrandingOpacity(parseInt(e.target.value))}
+                            className="w-full accent-violet-500"/>
+                        </div>
+
+                        <button
+                          onClick={async () => {
+                            const form = new FormData();
+                            form.append("position", brandingPosition);
+                            form.append("size", String(brandingSize));
+                            form.append("opacity", String(brandingOpacity));
+                            await fetch("/api/settings/branding", { method: "POST", body: form });
+                            setBrandingSaved(true); setTimeout(() => setBrandingSaved(false), 2000);
+                          }}
+                          className="w-full py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-sm font-medium transition-colors"
+                        >
+                          Save Settings
+                        </button>
+
+                        {brandingLogoUrl && (
+                          <button
+                            onClick={async () => {
+                              await fetch("/api/settings/branding", { method: "DELETE" });
+                              setBrandingLogoUrl(null);
+                            }}
+                            className="w-full py-2 rounded-xl border border-white/[0.07] text-xs text-white/40 hover:text-red-400 transition-colors"
+                          >
+                            Remove Watermark
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                </div>
               </div>
+
             </Container>
           )}
 
@@ -3181,7 +3408,7 @@ export default function DashboardPage() {
 
             {/* Tab bar */}
             <div className="flex border-b border-white/[0.07] flex-shrink-0">
-              {(["social", "woocommerce"] as const).map((tab) => (
+              {(["social", "woocommerce", "shopify"] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setShareTab(tab)}
@@ -3191,7 +3418,7 @@ export default function DashboardPage() {
                       : "text-white/40 border-transparent hover:text-white/70"
                   }`}
                 >
-                  {tab === "social" ? "Social" : "🛍️ WooCommerce"}
+                  {tab === "social" ? "Social" : tab === "woocommerce" ? "🛍️ WooCommerce" : "🟦 Shopify"}
                 </button>
               ))}
             </div>
@@ -3809,6 +4036,172 @@ export default function DashboardPage() {
                     {/* Bottom spacing */}
                     <div className="h-2" />
 
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* ── Shopify Tab ── */}
+            {shareTab === "shopify" && (
+              <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4">
+
+                {shopifyShareConnected === null && (
+                  <div className="flex items-center justify-center py-10">
+                    <span className="w-5 h-5 rounded-full border-2 border-violet-400 border-t-transparent animate-spin"/>
+                  </div>
+                )}
+
+                {shopifyShareConnected === false && (
+                  <div className="text-center py-10 space-y-4">
+                    <div className="text-3xl">🟦</div>
+                    <p className="text-white/60 text-sm">Connect Shopify in Settings → Integrations first</p>
+                    <button
+                      onClick={() => { setShareProject(null); setActiveNav("settings"); }}
+                      className="px-5 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-sm font-medium transition-colors"
+                    >
+                      Go to Settings
+                    </button>
+                  </div>
+                )}
+
+                {shopifyShareConnected === true && (
+                  <>
+                    {shopifyProductUrl && (
+                      <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
+                        <p className="text-emerald-300 text-sm font-semibold">✓ Product published!</p>
+                        <a href={shopifyProductUrl} target="_blank" rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 mt-2 px-3 py-1.5 rounded-lg bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-medium">
+                          View in Shopify Admin ↗
+                        </a>
+                      </div>
+                    )}
+
+                    {/* Image selector */}
+                    <div>
+                      <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-2">Select Images</p>
+                      <div className="flex gap-3 overflow-x-auto pb-2">
+                        {shareProject?.images.map((img) => (
+                          <button key={img.id}
+                            onClick={() => setShopifyImages(prev =>
+                              prev.includes(img.imageUrl)
+                                ? prev.filter(u => u !== img.imageUrl)
+                                : [...prev, img.imageUrl]
+                            )}
+                            className={`relative flex-shrink-0 w-20 h-28 rounded-xl overflow-hidden border-2 transition-all ${
+                              shopifyImages.includes(img.imageUrl)
+                                ? "border-violet-500 scale-[1.02]"
+                                : "border-white/10 hover:border-violet-500/40"
+                            }`}
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={getImageUrl(img.imageUrl)} alt="" className="w-full h-full object-cover"/>
+                            {shopifyImages.includes(img.imageUrl) && (
+                              <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-violet-500 flex items-center justify-center">
+                                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                                  <path d="M2 5l2.5 2.5L8 3" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                </svg>
+                              </div>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Product Title */}
+                    <div>
+                      <label className="text-xs text-white/40 mb-1.5 block">Product Title</label>
+                      <input type="text" value={shopifyTitle} onChange={e => setShopifyTitle(e.target.value)}
+                        placeholder="e.g. Black Embroidered Kurta"
+                        className="w-full bg-white/[0.03] border border-white/[0.07] rounded-lg px-3 py-2 text-sm outline-none focus:border-violet-500/50 placeholder:text-white/20 text-white"/>
+                    </div>
+
+                    {/* Description */}
+                    <div>
+                      <label className="text-xs text-white/40 mb-1.5 block">Description</label>
+                      <textarea value={shopifyDescription} onChange={e => setShopifyDescription(e.target.value)}
+                        rows={4} placeholder="Product description..."
+                        className="w-full bg-white/[0.03] border border-white/[0.07] rounded-lg px-3 py-2 text-sm outline-none focus:border-violet-500/50 placeholder:text-white/20 text-white resize-none"/>
+                    </div>
+
+                    {/* Price */}
+                    <div>
+                      <label className="text-xs text-white/40 mb-1.5 block">Price (PKR)</label>
+                      <input type="number" value={shopifyPrice} onChange={e => setShopifyPrice(e.target.value)}
+                        placeholder="0.00" min="0"
+                        className="w-full bg-white/[0.03] border border-white/[0.07] rounded-lg px-3 py-2 text-sm outline-none focus:border-violet-500/50 placeholder:text-white/20 text-white"/>
+                    </div>
+
+                    {/* Tags */}
+                    <div>
+                      <label className="text-xs text-white/40 mb-1.5 block">Tags</label>
+                      <input type="text" value={shopifyTags} onChange={e => setShopifyTags(e.target.value)}
+                        placeholder="fashion, kurta, eid"
+                        className="w-full bg-white/[0.03] border border-white/[0.07] rounded-lg px-3 py-2 text-sm outline-none focus:border-violet-500/50 placeholder:text-white/20 text-white"/>
+                      <p className="text-[10px] text-white/20 mt-1">Comma separated</p>
+                    </div>
+
+                    {/* Status */}
+                    <div>
+                      <label className="text-xs text-white/40 mb-2 block">Status</label>
+                      <div className="flex gap-2">
+                        {(["draft", "active"] as const).map(s => (
+                          <button key={s} onClick={() => setShopifyStatus(s)}
+                            className={`px-5 py-1.5 rounded-full border text-xs font-medium transition-all ${
+                              shopifyStatus === s
+                                ? "bg-violet-600/20 border-violet-500 text-violet-300"
+                                : "bg-white/[0.03] border-white/[0.07] text-white/50 hover:border-white/20"
+                            }`}>
+                            {s === "draft" ? "Draft" : "Active"}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {shopifyPublishError && (
+                      <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30">
+                        <p className="text-red-400 text-xs">{shopifyPublishError}</p>
+                      </div>
+                    )}
+
+                    {!shopifyProductUrl && (
+                      <button
+                        disabled={shopifyPublishing || !shopifyPrice || shopifyImages.length === 0}
+                        onClick={async () => {
+                          setShopifyPublishing(true)
+                          setShopifyPublishError("")
+                          const res = await fetch("/api/shopify/publish", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              title: shopifyTitle || shareProject?.name,
+                              description: shopifyDescription,
+                              price: shopifyPrice,
+                              tags: shopifyTags,
+                              status: shopifyStatus,
+                              images: shopifyImages,
+                            })
+                          })
+                          const data = await res.json()
+                          setShopifyPublishing(false)
+                          if (data.success) {
+                            setShopifyProductUrl(data.productUrl)
+                          } else {
+                            setShopifyPublishError(data.error ?? "Failed to publish.")
+                          }
+                        }}
+                        className={`w-full py-3 rounded-xl text-sm font-medium transition-colors ${
+                          shopifyPublishing || !shopifyPrice || shopifyImages.length === 0
+                            ? "bg-white/[0.04] text-white/20 cursor-not-allowed"
+                            : "bg-violet-600 hover:bg-violet-500 text-white"
+                        }`}
+                      >
+                        {shopifyPublishing ? "Publishing…" :
+                          shopifyImages.length === 0 ? "Select images first" :
+                          !shopifyPrice ? "Enter price first" :
+                          "Publish to Shopify →"}
+                      </button>
+                    )}
+                    <div className="h-2"/>
                   </>
                 )}
               </div>

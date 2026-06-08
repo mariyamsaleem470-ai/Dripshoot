@@ -26,7 +26,14 @@ model User {
   status           String    @default("pending")
   approvedAt       DateTime?
   approvedBy       String?
-  pkrPlan          String    @default("free")
+  pkrPlan              String    @default("free")
+  brandingLogoUrl      String?
+  brandingLogoPublicId String?
+  brandingPosition     String?   @default("south_east")
+  brandingSize         Int?      @default(150)
+  brandingOpacity      Int?      @default(70)
+  shopifySiteUrl       String?
+  shopifyAccessToken   String?
 }
 
 model Project {
