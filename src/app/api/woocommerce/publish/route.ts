@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 export async function POST(req: Request) {
   const { userId } = await auth();
@@ -34,47 +35,11 @@ export async function POST(req: Request) {
     attributes,
   } = await req.json();
 
-  const { wpSiteUrl, wpConsumerKey, wpConsumerSecret, wpAppPassword } = user;
+  const { wpSiteUrl, wpConsumerKey, wpConsumerSecret } = user;
   const wcAuth = "Basic " + btoa(wpConsumerKey + ":" + wpConsumerSecret);
-  const wpAuth = "Basic " + btoa("admin:" + wpAppPassword);
 
-  // Step 1 — Upload featured image to WordPress media library
-  const featuredBlob = await fetch(featuredImageUrl).then((r) => r.blob());
-  const featuredMediaRes = await fetch(`${wpSiteUrl}/wp-json/wp/v2/media`, {
-    method: "POST",
-    headers: {
-      Authorization: wpAuth,
-      "Content-Disposition": "attachment; filename=featured.jpg",
-      "Content-Type": "image/jpeg",
-    },
-    body: featuredBlob,
-  });
-
-  if (!featuredMediaRes.ok) {
-    return Response.json({ error: "Failed to upload featured image." }, { status: 502 });
-  }
-
-  const featuredMedia = await featuredMediaRes.json();
-  const featuredMediaId: number = featuredMedia.id;
-
-  // Step 2 — Upload gallery images
-  const galleryIds: number[] = [];
-  for (const imageUrl of galleryImageUrls ?? []) {
-    const blob = await fetch(imageUrl).then((r) => r.blob());
-    const mediaRes = await fetch(`${wpSiteUrl}/wp-json/wp/v2/media`, {
-      method: "POST",
-      headers: {
-        Authorization: wpAuth,
-        "Content-Disposition": "attachment; filename=gallery.jpg",
-        "Content-Type": "image/jpeg",
-      },
-      body: blob,
-    });
-    if (mediaRes.ok) {
-      const media = await mediaRes.json();
-      galleryIds.push(media.id);
-    }
-  }
+  // Use Cloudinary URLs directly - no media upload needed
+  const allImageUrls = [featuredImageUrl, ...(galleryImageUrls ?? [])]
 
   // Step 3 — Create WooCommerce product
   const productRes = await fetch(`${wpSiteUrl}/wp-json/wc/v3/products`, {
@@ -91,10 +56,10 @@ export async function POST(req: Request) {
       short_description: shortDescription,
       regular_price: regularPrice,
       sale_price: salePrice || "",
-      images: [
-        { id: featuredMediaId },
-        ...galleryIds.map((id) => ({ id })),
-      ],
+      images: allImageUrls.map((url, i) => ({
+        src: url,
+        position: i,
+      })),
       categories: categoryId ? [{ id: parseInt(categoryId) }] : [],
       tags: (tags as string)
         .split(",")
