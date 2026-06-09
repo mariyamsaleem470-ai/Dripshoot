@@ -29,6 +29,7 @@ type Project = {
   gender: string;
   ethnicity: string;
   occasion: string;
+  prompt?: string | null;
   createdAt: string;
   uploads: ProjectUpload[];
   images: ProjectImage[];
@@ -58,41 +59,41 @@ const PROGRESS_MESSAGES = [
 ];
 
 const CATEGORIES: { id: ProductCategory; label: string; emoji: string }[] = [
-  { id: "clothing",      label: "Clothing & Apparel",    emoji: "👕" },
-  { id: "shoes",         label: "Shoes & Footwear",      emoji: "👟" },
-  { id: "jewelry",       label: "Jewelry & Accessories", emoji: "💍" },
-  { id: "bags",          label: "Bags & Handbags",       emoji: "👜" },
-  { id: "hats",          label: "Hats & Headwear",       emoji: "🧢" },
-  { id: "fabric-male",   label: "Fabric Male",           emoji: "🎽" },
-  { id: "fabric-female", label: "Fabric Female",         emoji: "👗" },
+  { id: "clothing",      label: "Clothing & Apparel",    emoji: "" },
+  { id: "shoes",         label: "Shoes & Footwear",      emoji: "" },
+  { id: "jewelry",       label: "Jewelry & Accessories", emoji: "" },
+  { id: "bags",          label: "Bags & Handbags",       emoji: "" },
+  { id: "hats",          label: "Hats & Headwear",       emoji: "" },
+  { id: "fabric-male",   label: "Fabric Male",           emoji: "" },
+  { id: "fabric-female", label: "Fabric Female",         emoji: "" },
 ];
 
 const FABRIC_STYLES: Record<"fabric-male" | "fabric-female", { id: string; label: string; emoji: string; desc?: string }[]> = {
   "fabric-male": [
-    { id: "Shalwar Kameez",      label: "Shalwar Kameez",      emoji: "🧣" },
-    { id: "Kameez Pajama",       label: "Kameez Pajama",       emoji: "👘" },
-    { id: "Italian Suit",        label: "Italian Suit",        emoji: "🤵" },
-    { id: "Blazer",              label: "Blazer",              emoji: "🧥" },
-    { id: "Sherwani",            label: "Sherwani",            emoji: "👔" },
-    { id: "Simple Shirt",        label: "Simple Shirt",        emoji: "👕" },
-    { id: "Waistcoat + Shalwar", label: "Waistcoat + Shalwar", emoji: "🎽" },
-    { id: "Kurta",               label: "Kurta",               emoji: "🥻" },
-    { id: "italian-with-tie",    label: "Italian Suit with Tie",    emoji: "👔", desc: "Classic Italian cut, formal tie"  },
-    { id: "italian-without-tie", label: "Italian Suit without Tie", emoji: "🕴️", desc: "Smart casual, no tie"             },
-    { id: "double-button",       label: "Double Breasted",          emoji: "🎩", desc: "Double button formal suit"        },
-    { id: "prince-suit",         label: "Prince Coat",              emoji: "👑", desc: "Traditional prince coat style"   },
-    { id: "long-coat",           label: "Long Coat",                emoji: "🧥", desc: "Elegant long coat style"         },
-    { id: "italian-big-flaps",   label: "Italian Big Flaps",        emoji: "✨", desc: "Wide lapel Italian style"        },
+    { id: "Shalwar Kameez",      label: "Shalwar Kameez",      emoji: "" },
+    { id: "Kameez Pajama",       label: "Kameez Pajama",       emoji: "" },
+    { id: "Italian Suit",        label: "Italian Suit",        emoji: "" },
+    { id: "Blazer",              label: "Blazer",              emoji: "" },
+    { id: "Sherwani",            label: "Sherwani",            emoji: "" },
+    { id: "Simple Shirt",        label: "Simple Shirt",        emoji: "" },
+    { id: "Waistcoat + Shalwar", label: "Waistcoat + Shalwar", emoji: "" },
+    { id: "Kurta",               label: "Kurta",               emoji: "" },
+    { id: "italian-with-tie",    label: "Italian Suit with Tie",    emoji: "", desc: "Classic Italian cut, formal tie"  },
+    { id: "italian-without-tie", label: "Italian Suit without Tie", emoji: "", desc: "Smart casual, no tie"             },
+    { id: "double-button",       label: "Double Breasted",          emoji: "", desc: "Double button formal suit"        },
+    { id: "prince-suit",         label: "Prince Coat",              emoji: "", desc: "Traditional prince coat style"   },
+    { id: "long-coat",           label: "Long Coat",                emoji: "", desc: "Elegant long coat style"         },
+    { id: "italian-big-flaps",   label: "Italian Big Flaps",        emoji: "", desc: "Wide lapel Italian style"        },
   ],
   "fabric-female": [
-    { id: "Shalwar Kameez", label: "Shalwar Kameez", emoji: "👗" },
-    { id: "Gharara",        label: "Gharara",         emoji: "🎀" },
-    { id: "Lehenga",        label: "Lehenga",         emoji: "💃" },
-    { id: "Anarkali",       label: "Anarkali",        emoji: "🌸" },
-    { id: "Maxi Dress",     label: "Maxi Dress",      emoji: "👗" },
-    { id: "Co-ord Set",     label: "Co-ord Set",      emoji: "🎽" },
-    { id: "Saree",          label: "Saree",           emoji: "🥻" },
-    { id: "Kurti",          label: "Kurti",           emoji: "🌺" },
+    { id: "Shalwar Kameez", label: "Shalwar Kameez", emoji: "" },
+    { id: "Gharara",        label: "Gharara",         emoji: "" },
+    { id: "Lehenga",        label: "Lehenga",         emoji: "" },
+    { id: "Anarkali",       label: "Anarkali",        emoji: "" },
+    { id: "Maxi Dress",     label: "Maxi Dress",      emoji: "" },
+    { id: "Co-ord Set",     label: "Co-ord Set",      emoji: "" },
+    { id: "Saree",          label: "Saree",           emoji: "" },
+    { id: "Kurti",          label: "Kurti",           emoji: "" },
   ],
 };
 
@@ -154,60 +155,60 @@ const SIDES_BY_CATEGORY: Record<ProductCategory, { id: Side; label: string }[]> 
 const QUALITY_CREDITS: Record<Quality, number> = { standard: 1, high: 3, ultra: 5 };
 
 const SUIT_STYLES: { id: string; label: string; icon: string; desc: string }[] = [
-  { id: "italian-with-tie",     label: "Italian Suit with Tie",    icon: "👔", desc: "Classic Italian cut, formal tie"  },
-  { id: "italian-without-tie",  label: "Italian Suit without Tie", icon: "🕴️", desc: "Smart casual, no tie"             },
-  { id: "double-button",        label: "Double Breasted",          icon: "🎩", desc: "Double button formal suit"        },
-  { id: "prince-suit",          label: "Prince Coat",              icon: "👑", desc: "Traditional prince coat style"   },
-  { id: "long-coat",            label: "Long Coat",                icon: "🧥", desc: "Elegant long coat style"         },
-  { id: "italian-big-flaps",    label: "Italian Big Flaps",        icon: "✨", desc: "Wide lapel Italian style"        },
+  { id: "italian-with-tie",     label: "Italian Suit with Tie",    icon: "", desc: "Classic Italian cut, formal tie"  },
+  { id: "italian-without-tie",  label: "Italian Suit without Tie", icon: "", desc: "Smart casual, no tie"             },
+  { id: "double-button",        label: "Double Breasted",          icon: "", desc: "Double button formal suit"        },
+  { id: "prince-suit",          label: "Prince Coat",              icon: "", desc: "Traditional prince coat style"   },
+  { id: "long-coat",            label: "Long Coat",                icon: "", desc: "Elegant long coat style"         },
+  { id: "italian-big-flaps",    label: "Italian Big Flaps",        icon: "", desc: "Wide lapel Italian style"        },
 ];
 
 const STITCHED_STYLES_MALE = [
-  { id: "casual-shirt",        label: "Casual Shirt",       emoji: "👕" },
-  { id: "shalwar-kameez",      label: "Shalwar Kameez",     emoji: "🧣" },
-  { id: "italian-suit",        label: "Italian Suit",       emoji: "🤵" },
-  { id: "blazer",              label: "Blazer",             emoji: "🧥" },
-  { id: "sherwani",            label: "Sherwani",           emoji: "👘" },
-  { id: "kurta",               label: "Kurta",              emoji: "🥻" },
-  { id: "waistcoat-shalwar",   label: "Waistcoat + Shalwar",emoji: "🎽" },
-  { id: "double-breasted-suit",label: "Double Breasted",    emoji: "🎩" },
-  { id: "prince-coat",         label: "Prince Coat",        emoji: "👑" },
-  { id: "long-coat",           label: "Long Coat",          emoji: "🧥" },
+  { id: "casual-shirt",        label: "Casual Shirt",       emoji: "" },
+  { id: "shalwar-kameez",      label: "Shalwar Kameez",     emoji: "" },
+  { id: "italian-suit",        label: "Italian Suit",       emoji: "" },
+  { id: "blazer",              label: "Blazer",             emoji: "" },
+  { id: "sherwani",            label: "Sherwani",           emoji: "" },
+  { id: "kurta",               label: "Kurta",              emoji: "" },
+  { id: "waistcoat-shalwar",   label: "Waistcoat + Shalwar",emoji: "" },
+  { id: "double-breasted-suit",label: "Double Breasted",    emoji: "" },
+  { id: "prince-coat",         label: "Prince Coat",        emoji: "" },
+  { id: "long-coat",           label: "Long Coat",          emoji: "" },
 ];
 
 const STITCHED_STYLES_FEMALE = [
-  { id: "kurti",        label: "Kurti",         emoji: "🌺" },
-  { id: "shalwar-kameez",label: "Shalwar Kameez",emoji: "👗" },
-  { id: "gharara",      label: "Gharara",       emoji: "🎀" },
-  { id: "lehenga",      label: "Lehenga",       emoji: "💃" },
-  { id: "anarkali",     label: "Anarkali",      emoji: "🌸" },
-  { id: "maxi-dress",   label: "Maxi Dress",    emoji: "👗" },
-  { id: "coord-set",    label: "Co-ord Set",    emoji: "🎽" },
-  { id: "saree",        label: "Saree",         emoji: "🥻" },
+  { id: "kurti",        label: "Kurti",         emoji: "" },
+  { id: "shalwar-kameez",label: "Shalwar Kameez",emoji: "" },
+  { id: "gharara",      label: "Gharara",       emoji: "" },
+  { id: "lehenga",      label: "Lehenga",       emoji: "" },
+  { id: "anarkali",     label: "Anarkali",      emoji: "" },
+  { id: "maxi-dress",   label: "Maxi Dress",    emoji: "" },
+  { id: "coord-set",    label: "Co-ord Set",    emoji: "" },
+  { id: "saree",        label: "Saree",         emoji: "" },
 ];
 
 const UNSTITCHED_STYLES_MALE = [
-  { id: "shalwar-kameez-fabric",    label: "Shalwar Kameez",  emoji: "🧣" },
-  { id: "kurta-pajama-fabric",      label: "Kurta Pajama",    emoji: "👘" },
-  { id: "casual-shirt-fabric",      label: "Casual Shirt",    emoji: "👕" },
-  { id: "italian-suit-fabric",      label: "Italian Suit",    emoji: "🤵" },
-  { id: "double-breasted-fabric",   label: "Double Breasted", emoji: "🎩" },
-  { id: "prince-coat-fabric",       label: "Prince Coat",     emoji: "👑" },
-  { id: "long-coat-fabric",         label: "Long Coat",       emoji: "🧥" },
-  { id: "sherwani-fabric",          label: "Sherwani",        emoji: "👘" },
-  { id: "blazer-fabric",            label: "Blazer",          emoji: "🧥" },
-  { id: "waistcoat-fabric",         label: "Waistcoat + Shalwar", emoji: "🎽" },
+  { id: "shalwar-kameez-fabric",    label: "Shalwar Kameez",  emoji: "" },
+  { id: "kurta-pajama-fabric",      label: "Kurta Pajama",    emoji: "" },
+  { id: "casual-shirt-fabric",      label: "Casual Shirt",    emoji: "" },
+  { id: "italian-suit-fabric",      label: "Italian Suit",    emoji: "" },
+  { id: "double-breasted-fabric",   label: "Double Breasted", emoji: "" },
+  { id: "prince-coat-fabric",       label: "Prince Coat",     emoji: "" },
+  { id: "long-coat-fabric",         label: "Long Coat",       emoji: "" },
+  { id: "sherwani-fabric",          label: "Sherwani",        emoji: "" },
+  { id: "blazer-fabric",            label: "Blazer",          emoji: "" },
+  { id: "waistcoat-fabric",         label: "Waistcoat + Shalwar", emoji: "" },
 ];
 
 const UNSTITCHED_STYLES_FEMALE = [
-  { id: "shalwar-kameez-fabric", label: "Shalwar Kameez", emoji: "👗" },
-  { id: "gharara-fabric",        label: "Gharara",        emoji: "🎀" },
-  { id: "lehenga-fabric",        label: "Lehenga",        emoji: "💃" },
-  { id: "anarkali-fabric",       label: "Anarkali",       emoji: "🌸" },
-  { id: "maxi-dress-fabric",     label: "Maxi Dress",     emoji: "👗" },
-  { id: "coord-set-fabric",      label: "Co-ord Set",     emoji: "🎽" },
-  { id: "saree-fabric",          label: "Saree",          emoji: "🥻" },
-  { id: "kurti-fabric",          label: "Kurti",          emoji: "🌺" },
+  { id: "shalwar-kameez-fabric", label: "Shalwar Kameez", emoji: "" },
+  { id: "gharara-fabric",        label: "Gharara",        emoji: "" },
+  { id: "lehenga-fabric",        label: "Lehenga",        emoji: "" },
+  { id: "anarkali-fabric",       label: "Anarkali",       emoji: "" },
+  { id: "maxi-dress-fabric",     label: "Maxi Dress",     emoji: "" },
+  { id: "coord-set-fabric",      label: "Co-ord Set",     emoji: "" },
+  { id: "saree-fabric",          label: "Saree",          emoji: "" },
+  { id: "kurti-fabric",          label: "Kurti",          emoji: "" },
 ];
 
 const STEP_TITLES: Record<number, string> = {
@@ -281,15 +282,15 @@ const REEL_FORMATS: { id: ReelFormat; label: string; subtitle: string; width: nu
 ];
 
 const REEL_TEMPLATES: { id: ReelTemplate; name: string; desc: string; icon: string }[] = [
-  { id: "ken-burns",      name: "Ken Burns",     desc: "Smooth zoom in + diagonal pan",     icon: "🔍" },
-  { id: "zoom-out",       name: "Zoom Out",       desc: "Pulls back with subtle rotation",   icon: "🔭" },
-  { id: "pan-left",       name: "Pan Left",       desc: "Eased pan with gentle zoom",        icon: "⬅"  },
-  { id: "pan-right",      name: "Pan Right",      desc: "Eased pan with gentle zoom",        icon: "➡"  },
-  { id: "fade-slideshow", name: "Fade Slideshow", desc: "Multiple images with fade",         icon: "🎞"  },
-  { id: "cinematic",      name: "Cinematic",      desc: "Letterbox + vignette + Ken Burns",  icon: "🎬" },
-  { id: "drift-up",       name: "Drift Up",       desc: "Slow upward float + gentle zoom",   icon: "⬆"  },
-  { id: "pulse",          name: "Pulse",          desc: "Rhythmic scale pulse, 2 beats",     icon: "💓" },
-  { id: "multi-motion",   name: "Multi Motion",   desc: "3 different motions from 1 image",   icon: "🎬" },
+  { id: "ken-burns",      name: "Ken Burns",     desc: "Smooth zoom in + diagonal pan",     icon: "" },
+  { id: "zoom-out",       name: "Zoom Out",       desc: "Pulls back with subtle rotation",   icon: "" },
+  { id: "pan-left",       name: "Pan Left",       desc: "Eased pan with gentle zoom",        icon: "" },
+  { id: "pan-right",      name: "Pan Right",      desc: "Eased pan with gentle zoom",        icon: "" },
+  { id: "fade-slideshow", name: "Fade Slideshow", desc: "Multiple images with fade",         icon: "" },
+  { id: "cinematic",      name: "Cinematic",      desc: "Letterbox + vignette + Ken Burns",  icon: "" },
+  { id: "drift-up",       name: "Drift Up",       desc: "Slow upward float + gentle zoom",   icon: "" },
+  { id: "pulse",          name: "Pulse",          desc: "Rhythmic scale pulse, 2 beats",     icon: "" },
+  { id: "multi-motion",   name: "Multi Motion",   desc: "3 different motions from 1 image",   icon: "" },
 ];
 
 const easeInOut = (t: number) => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
@@ -300,10 +301,10 @@ const MUSIC_TRACKS: { id: Exclude<MusicTrack, "custom">; label: string; src: str
 ];
 
 const SHARE_PLATFORMS: { id: SharePlatform; name: string; icon: string; hint: string }[] = [
-  { id: "Instagram", name: "Instagram", icon: "📸", hint: "Caption copied + open app" },
-  { id: "Facebook",  name: "Facebook",  icon: "👥", hint: "Share via Facebook"        },
-  { id: "TikTok",    name: "TikTok",    icon: "🎵", hint: "Caption copied + open app" },
-  { id: "Twitter",   name: "Twitter",   icon: "🐦", hint: "Share via Twitter / X"     },
+  { id: "Instagram", name: "Instagram", icon: "", hint: "Caption copied + open app" },
+  { id: "Facebook",  name: "Facebook",  icon: "", hint: "Share via Facebook"        },
+  { id: "TikTok",    name: "TikTok",    icon: "", hint: "Caption copied + open app" },
+  { id: "Twitter",   name: "Twitter",   icon: "", hint: "Share via Twitter / X"     },
 ];
 
 // ─── Icon Components ──────────────────────────────────────────────────────────
@@ -509,6 +510,7 @@ export default function DashboardPage() {
   const [customMusicFile, setCustomMusicFile] = useState<File | null>(null);
   const [previewingTrack, setPreviewingTrack] = useState<string | null>(null);
   const [editablePrompt, setEditablePrompt] = useState("");
+  const [showPromptPreview, setShowPromptPreview] = useState(false);
   const [aiVideoImages, setAiVideoImages] = useState<string[]>([]);
   const [aiVideoDuration] = useState<number>(10);
   const [aiVideoResolution, setAiVideoResolution] = useState<"480p" | "720p" | "1080p">("720p");
@@ -581,6 +583,8 @@ export default function DashboardPage() {
   const [brandingOpacity, setBrandingOpacity] = useState(70)
   const [brandingUploading, setBrandingUploading] = useState(false)
   const [brandingSaved, setBrandingSaved] = useState(false)
+  const [brandingPreviewUrl, setBrandingPreviewUrl] = useState<string | null>(null)
+  const [brandingPreviewing, setBrandingPreviewing] = useState(false)
   const brandingFileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -1565,7 +1569,7 @@ export default function DashboardPage() {
         {creditInfo && (
           <div className="mx-3 mt-4 p-3 rounded-xl bg-white/[0.03] border border-white/[0.07]">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-white/50">✨ Credits</span>
+              <span className="text-xs text-white/50">Credits</span>
               <span className="text-xs text-violet-400 capitalize">{creditInfo.plan}</span>
             </div>
             <div className="text-sm font-medium text-white mb-1">
@@ -1588,12 +1592,12 @@ export default function DashboardPage() {
       </aside>
 
       {/* Main Content */}
-      <main className="pt-[57px] md:ml-64 min-h-screen flex flex-col relative z-10">
+      <main className="pt-[57px] md:ml-64 min-h-screen flex flex-col relative z-10 pb-28 md:pb-0">
         <div className="flex-1 overflow-y-auto">
 
           {/* ── Wizard ── */}
           {activeNav === "upload" && !generating && !results && (
-            <Container className="py-10">
+            <Container className="py-6 sm:py-10">
               {/* Editing banner */}
               {editingProjectName && (
                 <div className="flex items-center justify-between gap-3 mb-6 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-300">
@@ -1620,8 +1624,8 @@ export default function DashboardPage() {
               )}
 
               {/* Step progress bar */}
-              <div className="mb-8">
-                <div className="flex gap-1 mb-4">
+              <div className="mb-6 sm:mb-8">
+                <div className="flex gap-1 mb-3 sm:mb-4">
                   {Array.from({ length: totalSteps }, (_, i) => (
                     <div
                       key={i}
@@ -1634,7 +1638,7 @@ export default function DashboardPage() {
                 <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-1">
                   Step {displayStep} of {totalSteps}
                 </p>
-                <h1 className="text-2xl font-bold">{STEP_TITLES[wizardStep]}</h1>
+                <h1 className="text-xl sm:text-2xl font-bold">{STEP_TITLES[wizardStep]}</h1>
               </div>
 
               {/* ── Step 1: Upload ── */}
@@ -1700,7 +1704,7 @@ export default function DashboardPage() {
                   {showCropTool && (
                     <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 mt-3">
                       <p className="text-amber-400 text-sm font-medium mb-3">
-                        ⚠️ We detected both front and back sides in your image. Please select which side to use:
+                        We detected both front and back sides in your image. Please select which side to use:
                       </p>
                       <div className="flex gap-3">
                         <button
@@ -1719,7 +1723,7 @@ export default function DashboardPage() {
                     </div>
                   )}
                   <p className="text-xs text-zinc-500 mt-2 text-center">
-                    💡 Tip: Upload front view only for best results. If your image has both sides, we will detect it automatically.
+                    Tip: Upload front view only for best results. If your image has both sides, we will detect it automatically.
                   </p>
                 </div>
               )}
@@ -1735,7 +1739,6 @@ export default function DashboardPage() {
                         : "border-white/[0.07] bg-white/[0.03] text-white/60 hover:border-violet-500/40"
                     }`}
                   >
-                    <span className="text-4xl">👔</span>
                     <div className="text-center">
                       <p className="font-semibold text-sm">Stitched</p>
                       <p className="text-xs text-white/40 mt-1">Ready to wear garment</p>
@@ -1749,7 +1752,6 @@ export default function DashboardPage() {
                         : "border-white/[0.07] bg-white/[0.03] text-white/60 hover:border-violet-500/40"
                     }`}
                   >
-                    <span className="text-4xl">🧵</span>
                     <div className="text-center">
                       <p className="font-semibold text-sm">Unstitched</p>
                       <p className="text-xs text-white/40 mt-1">Fabric - select style</p>
@@ -1775,7 +1777,6 @@ export default function DashboardPage() {
                             : "border-white/[0.07] bg-white/[0.03] text-white/60 hover:border-violet-500/40"
                         }`}
                       >
-                        <span className="text-2xl">{style.emoji}</span>
                         <span className="text-xs font-medium text-center leading-tight">{style.label}</span>
                       </button>
                     ));
@@ -1955,7 +1956,7 @@ export default function DashboardPage() {
                 <div className="space-y-4">
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-medium text-white/70">✨ AI Prompt (editable)</h3>
+                      <h3 className="text-sm font-medium text-white/70">AI Prompt (editable)</h3>
                       <button
                         onClick={() => setEditablePrompt(buildClientPrompt(
                           "clothing", gender!, ethnicity!, occasion!, ageGroup!, background!,
@@ -1988,7 +1989,7 @@ export default function DashboardPage() {
                     onClick={handleBack}
                     className="px-5 py-3 rounded-xl border border-white/[0.07] text-sm text-white/60 hover:text-white hover:border-white/20 transition-colors"
                   >
-                    ← Back
+                    Back
                   </button>
                 )}
                 {wizardStep < 11 ? (
@@ -2001,15 +2002,15 @@ export default function DashboardPage() {
                         : "bg-white/[0.04] text-white/20 cursor-not-allowed"
                     }`}
                   >
-                    Next →
+                    Next
                   </button>
                 ) : (
                   <button
                     disabled={!uploadedUrl || !gender || !ethnicity || !occasion}
-                    onClick={handleGenerate}
+                    onClick={() => setShowPromptPreview(true)}
                     className="flex-1 py-3 rounded-xl text-sm font-medium bg-violet-600 hover:bg-violet-500 text-white transition-colors disabled:bg-white/[0.04] disabled:text-white/20 disabled:cursor-not-allowed"
                   >
-                    <span>Generate ✨</span>
+                    <span>Generate</span>
                     <span className="ml-2 text-violet-300 text-xs font-normal">{numImages * sides.length} credits</span>
                   </button>
                 )}
@@ -2019,7 +2020,7 @@ export default function DashboardPage() {
 
           {/* ── Generating / Loading ── */}
           {activeNav === "upload" && generating && (
-            <Container className="py-10">
+            <Container className="py-6 sm:py-10">
               <div className="max-w-xs mx-auto text-center py-8">
                 <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-2">
                   Processing
@@ -2063,7 +2064,7 @@ export default function DashboardPage() {
 
           {/* ── Results ── */}
           {activeNav === "upload" && results && !generating && (
-            <Container className="py-10">
+            <Container className="py-6 sm:py-10">
               {/* Header row */}
               <div className="mb-8 flex flex-col sm:flex-row sm:items-start gap-4 sm:justify-between">
                 <div>
@@ -2082,7 +2083,7 @@ export default function DashboardPage() {
               </div>
 
               {/* Original garment + generated grid */}
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 mb-8">
                 {/* Original garment card */}
                 {uploadedUrl && (
                   <div className="relative aspect-[4/5] rounded-2xl overflow-hidden bg-white/5">
@@ -2137,7 +2138,7 @@ export default function DashboardPage() {
               <div className="mb-4 flex justify-end">
                 <button
                   onClick={handleDownloadAllResults}
-                  className="flex items-center gap-2 bg-violet-600/20 hover:bg-violet-600/30 border border-violet-500/30 text-violet-300 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 bg-violet-600/20 hover:bg-violet-600/30 border border-violet-500/30 text-violet-300 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
                 >
                   <DownloadIcon />
                   Download All
@@ -2212,15 +2213,15 @@ export default function DashboardPage() {
                       <div className="flex gap-1 p-1 bg-white/[0.04] rounded-xl border border-white/[0.07]">
                         <button onClick={() => setReelMode("fashn")}
                           className={`flex-1 py-2 text-xs font-medium rounded-lg transition-all ${reelMode === "fashn" ? "bg-violet-600 text-white" : "text-white/40 hover:text-white/70"}`}>
-                          🎬 Fashn.ai Video
+                          AI Video
                         </button>
                         <button onClick={() => setReelMode("canvas")}
                           className={`flex-1 py-2 text-xs font-medium rounded-lg transition-all ${reelMode === "canvas" ? "bg-violet-600 text-white" : "text-white/40 hover:text-white/70"}`}>
-                          🖼️ Canvas Reel
+                          Canvas Reel
                         </button>
                       </div>
 
-                      {/* ── Fashn.ai section ── */}
+                      {/* ── AI Video section ── */}
                       {reelMode === "fashn" && <>
 
                         {/* Image selector */}
@@ -2259,19 +2260,29 @@ export default function DashboardPage() {
                             <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-3">
                               Model Motion <span className="normal-case text-white/20">(optional)</span>
                             </p>
-                            <input
-                              type="text"
-                              value={aiVideoMotionPrompt}
-                              onChange={(e) => setAiVideoMotionPrompt(e.target.value)}
-                              placeholder="e.g. walking confidently, fabric flowing, slow spin..."
-                              maxLength={120}
-                              className="w-full bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3 text-sm text-white placeholder-white/20 focus:outline-none focus:border-violet-500/50 transition-colors"
-                            />
+                            <div className="relative">
+                              <input
+                                type="text"
+                                value={aiVideoMotionPrompt}
+                                onChange={e => setAiVideoMotionPrompt(e.target.value)}
+                                placeholder="e.g. walking confidently, fabric flowing..."
+                                maxLength={200}
+                                className="w-full bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3 pr-10 text-sm text-white placeholder-white/20 focus:outline-none focus:border-violet-500/50 transition-colors"
+                              />
+                              {aiVideoMotionPrompt && (
+                                <button onClick={() => setAiVideoMotionPrompt("")}
+                                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60">
+                                  ✕
+                                </button>
+                              )}
+                            </div>
                             <div className="flex flex-wrap gap-1.5 mt-2">
                               {["Walking", "Fabric Flowing", "Slow Spin", "Looking at Camera", "Runway Walk"].map((pill) => (
                                 <button
                                   key={pill}
-                                  onClick={() => setAiVideoMotionPrompt(pill)}
+                                  onClick={() => setAiVideoMotionPrompt(prev =>
+                                    prev ? `${prev}, ${pill.toLowerCase()}` : pill.toLowerCase()
+                                  )}
                                   className={`px-3 py-1 rounded-full text-xs border transition-all ${
                                     aiVideoMotionPrompt === pill
                                       ? "bg-violet-600/20 border-violet-500 text-violet-300"
@@ -2282,7 +2293,7 @@ export default function DashboardPage() {
                                 </button>
                               ))}
                             </div>
-                            <p className="text-[10px] text-white/30 mt-2">💡 Keep short and concrete. Leave empty for automatic motion.</p>
+                            <p className="text-[10px] text-white/30 mt-2">Keep short and concrete. Leave empty for automatic motion.</p>
                           </div>
                         )}
 
@@ -2332,7 +2343,7 @@ export default function DashboardPage() {
                                   />
                                 </div>
                                 <div className="flex justify-between text-xs text-white/40">
-                                  <span>Generating via Fashn.ai…</span>
+                                  <span>Generating…</span>
                                   <span>{aiVideoProgress}%</span>
                                 </div>
                               </div>
@@ -2415,7 +2426,6 @@ export default function DashboardPage() {
                                     ? "border-violet-500 bg-violet-500/10"
                                     : "border-white/[0.07] bg-white/[0.03] hover:border-violet-500/40 hover:bg-white/[0.05]"
                                 }`}>
-                                <span className="text-2xl leading-none">{tpl.icon}</span>
                                 <p className={`text-xs font-semibold ${reelTemplate === tpl.id ? "text-violet-300" : "text-white/80"}`}>
                                   {tpl.name}
                                 </p>
@@ -2428,7 +2438,7 @@ export default function DashboardPage() {
                         {/* 1-image hint */}
                         {results.length === 1 && (
                           <div className="p-3 rounded-xl bg-violet-500/10 border border-violet-500/20 text-xs text-violet-300">
-                            💡 1 image detected — Multi Motion template creates a dynamic reel using 3 different camera movements.
+                            1 image detected — Multi Motion template creates a dynamic reel using 3 different camera movements.
                           </div>
                         )}
 
@@ -2533,9 +2543,9 @@ export default function DashboardPage() {
                                   : "border-white/[0.07] bg-white/[0.03] hover:border-violet-500/40"
                               }`}
                             >
-                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-sm ${
-                                selectedMusicTrack === null ? "bg-violet-500/20" : "bg-white/[0.05]"
-                              }`}>🔇</div>
+                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-[10px] font-medium ${
+                                selectedMusicTrack === null ? "bg-violet-500/20 text-violet-300" : "bg-white/[0.05] text-white/40"
+                              }`}>Off</div>
                               <span className={`flex-1 text-sm font-medium ${selectedMusicTrack === null ? "text-violet-300" : "text-white/60"}`}>
                                 No music
                               </span>
@@ -2592,9 +2602,14 @@ export default function DashboardPage() {
                                 ? "border-violet-500 bg-violet-500/10"
                                 : "border-white/[0.07] bg-white/[0.03]"
                             }`}>
-                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-sm ${
+                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
                                 selectedMusicTrack === "custom" ? "bg-violet-500/20" : "bg-white/[0.05]"
-                              }`}>🎵</div>
+                              }`}>
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={selectedMusicTrack === "custom" ? "text-violet-300" : "text-white/40"}>
+                                  <path d="M9 18V5l12-2v13"/>
+                                  <circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+                                </svg>
+                              </div>
                               <div className="flex-1 min-w-0">
                                 <p className={`text-sm font-medium truncate ${selectedMusicTrack === "custom" ? "text-violet-300" : "text-white/60"}`}>
                                   {customMusicFile ? customMusicFile.name : "Upload your own"}
@@ -2689,7 +2704,7 @@ export default function DashboardPage() {
 
           {/* My Projects */}
           {activeNav === "projects" && (
-            <Container className="py-10">
+            <Container className="py-6 sm:py-10">
               <div className="mb-8">
                 <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-2">
                   Projects
@@ -2738,9 +2753,9 @@ export default function DashboardPage() {
                         key={project.id}
                         className="bg-white/[0.03] border border-white/[0.07] rounded-2xl overflow-hidden transition-all"
                       >
-                        <div className="p-5 flex gap-5">
+                        <div className="p-4 sm:p-5 flex gap-3 sm:gap-5">
                           {/* Original garment thumbnail */}
-                          <div className="w-20 h-28 flex-shrink-0 rounded-xl overflow-hidden bg-white/[0.05]">
+                          <div className="w-14 h-20 sm:w-20 sm:h-28 flex-shrink-0 rounded-xl overflow-hidden bg-white/[0.05]">
                             {originalImage && (
                               <img
                                 src={getImageUrl(originalImage)}
@@ -2770,6 +2785,14 @@ export default function DashboardPage() {
                                 </span>
                               ))}
                             </div>
+
+                            {project.prompt && (
+                              <div className="mt-2 mb-1">
+                                <p className="text-[10px] text-white/30 line-clamp-2 italic">
+                                  &ldquo;{project.prompt}&rdquo;
+                                </p>
+                              </div>
+                            )}
 
                             {/* Tabs */}
                             <div className="flex gap-2 mt-3 mb-3">
@@ -2848,7 +2871,7 @@ export default function DashboardPage() {
                             )}
 
                             {/* Action buttons */}
-                            <div className="flex gap-2 mt-4">
+                            <div className="flex flex-wrap gap-2 mt-4">
                               <button
                                 onClick={() => handleDownloadAllImages(project)}
                                 disabled={downloadingProjectId === project.id}
@@ -2860,14 +2883,14 @@ export default function DashboardPage() {
                                     Zipping…
                                   </>
                                 ) : (
-                                  <>↓ Download All</>
+                                  <>Download All</>
                                 )}
                               </button>
                               <button
                                 onClick={() => handleEditAndRegenerate(project)}
                                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.08] text-white/50 hover:text-white/80 transition-colors"
                               >
-                                ✎ Edit &amp; Regenerate
+                                Edit &amp; Regenerate
                               </button>
                               <button
                                 onClick={() => {
@@ -2884,13 +2907,13 @@ export default function DashboardPage() {
                                 }}
                                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.08] text-white/50 hover:text-white/80 transition-colors"
                               >
-                                🎬 Create Reel
+                                Create Reel
                               </button>
                               <button
                                 onClick={() => openShareModal(project)}
                                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.08] text-white/50 hover:text-white/80 transition-colors"
                               >
-                                ↗ Share
+                                Share
                               </button>
                             </div>
                           </div>
@@ -2899,7 +2922,7 @@ export default function DashboardPage() {
                         {/* Expanded full image grid */}
                         {(activeProjectTab[project.id] || "Generated") === "Generated" && isExpanded && project.images.length > 0 && (
                           <div className="border-t border-white/[0.07] p-5">
-                            <div className="grid grid-cols-3 gap-3">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                               {project.images.map((img, i) => (
                                 <div
                                   key={img.id}
@@ -3047,7 +3070,7 @@ export default function DashboardPage() {
 
           {/* Settings */}
           {activeNav === "settings" && (
-            <Container className="py-10">
+            <Container className="py-6 sm:py-10">
               {/* Header */}
               <div className="mb-8">
                 <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-2">Settings</p>
@@ -3055,27 +3078,26 @@ export default function DashboardPage() {
                 <p className="text-white/40 text-sm mt-1">Connect your store and social platforms.</p>
               </div>
 
-              <div className="flex gap-6 min-h-[500px]">
+              <div className="flex flex-col md:flex-row gap-4 md:gap-6 min-h-[500px]">
 
-                {/* Left vertical tabs */}
-                <div className="w-48 flex-shrink-0">
-                  <div className="flex flex-col gap-1">
+                {/* Tabs — horizontal scrollable on mobile, vertical on desktop */}
+                <div className="md:w-48 md:flex-shrink-0">
+                  <div className="flex md:flex-col gap-1 overflow-x-auto md:overflow-x-visible pb-2 md:pb-0 -mx-4 md:mx-0 px-4 md:px-0">
                     {[
-                      { id: "integrations", label: "Integrations", icon: "🔌" },
-                      { id: "woocommerce",  label: "WooCommerce",  icon: "🛍️" },
-                      { id: "shopify",      label: "Shopify",      icon: "🟦" },
-                      { id: "branding",     label: "Brand Watermark", icon: "🏷️" },
+                      { id: "integrations", label: "Integrations" },
+                      { id: "woocommerce",  label: "WooCommerce"  },
+                      { id: "shopify",      label: "Shopify"      },
+                      { id: "branding",     label: "Brand Watermark" },
                     ].map(tab => (
                       <button
                         key={tab.id}
                         onClick={() => setSettingsTab(tab.id as "integrations" | "branding" | "shopify" | "woocommerce")}
-                        className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-left transition-all ${
+                        className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-left transition-all whitespace-nowrap md:whitespace-normal flex-shrink-0 md:flex-shrink ${
                           settingsTab === tab.id
                             ? "bg-violet-600/10 text-violet-400 border border-violet-500/20"
                             : "text-white/40 hover:text-white/70 hover:bg-white/[0.03]"
                         }`}
                       >
-                        <span>{tab.icon}</span>
                         <span>{tab.label}</span>
                       </button>
                     ))}
@@ -3091,7 +3113,11 @@ export default function DashboardPage() {
                       <div className="border border-white/[0.07] rounded-2xl p-5 flex items-center justify-between cursor-pointer hover:border-violet-500/30 transition-all"
                         onClick={() => setSettingsTab("woocommerce")}>
                         <div className="flex items-center gap-3">
-                          <span className="text-2xl">🛍️</span>
+                          <div className="w-8 h-8 rounded-lg bg-white/[0.05] flex items-center justify-center flex-shrink-0">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-white/50">
+                              <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/>
+                            </svg>
+                          </div>
                           <div>
                             <p className="font-semibold text-sm">WooCommerce</p>
                             <p className="text-xs mt-0.5 flex items-center gap-1">
@@ -3108,7 +3134,11 @@ export default function DashboardPage() {
                       <div className="border border-white/[0.07] rounded-2xl p-5 flex items-center justify-between cursor-pointer hover:border-violet-500/30 transition-all"
                         onClick={() => setSettingsTab("shopify")}>
                         <div className="flex items-center gap-3">
-                          <span className="text-2xl">🟦</span>
+                          <div className="w-8 h-8 rounded-lg bg-white/[0.05] flex items-center justify-center flex-shrink-0">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-white/50">
+                              <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8m-4-4v4"/>
+                            </svg>
+                          </div>
                           <div>
                             <p className="font-semibold text-sm">Shopify</p>
                             <p className="text-xs mt-0.5 flex items-center gap-1">
@@ -3125,7 +3155,11 @@ export default function DashboardPage() {
                       <div className="border border-white/[0.07] rounded-2xl p-5 flex items-center justify-between cursor-pointer hover:border-violet-500/30 transition-all"
                         onClick={() => setSettingsTab("branding")}>
                         <div className="flex items-center gap-3">
-                          <span className="text-2xl">🏷️</span>
+                          <div className="w-8 h-8 rounded-lg bg-white/[0.05] flex items-center justify-center flex-shrink-0">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-white/50">
+                              <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>
+                            </svg>
+                          </div>
                           <div>
                             <p className="font-semibold text-sm">Brand Watermark</p>
                             <p className="text-xs mt-0.5 flex items-center gap-1">
@@ -3140,13 +3174,12 @@ export default function DashboardPage() {
                       </div>
 
                       {[
-                        { icon: "📘", name: "Facebook" },
-                        { icon: "📸", name: "Instagram" },
-                        { icon: "🎵", name: "TikTok" },
-                      ].map(({ icon, name }) => (
+                        { name: "Facebook" },
+                        { name: "Instagram" },
+                        { name: "TikTok" },
+                      ].map(({ name }) => (
                         <div key={name} className="border border-white/[0.04] rounded-2xl p-5 opacity-50 cursor-not-allowed flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <span className="text-2xl">{icon}</span>
                             <p className="font-semibold text-sm">{name}</p>
                           </div>
                           <span className="text-xs px-2 py-1 rounded-md bg-white/[0.05] border border-white/[0.07] text-white/40">Coming Soon</span>
@@ -3159,7 +3192,7 @@ export default function DashboardPage() {
                   {settingsTab === "woocommerce" && (
                     <div className="max-w-md">
                       <div className="flex items-center gap-3 mb-6">
-                        <button onClick={() => setSettingsTab("integrations")} className="text-white/40 hover:text-white text-sm">← Back</button>
+                        <button onClick={() => setSettingsTab("integrations")} className="text-white/40 hover:text-white text-sm">Back</button>
                         <h2 className="text-lg font-semibold">WooCommerce</h2>
                         {wcConnected && <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/15 border border-green-500/30 text-green-400">Connected</span>}
                       </div>
@@ -3226,7 +3259,7 @@ export default function DashboardPage() {
                   {settingsTab === "shopify" && (
                     <div className="max-w-md">
                       <div className="flex items-center gap-3 mb-6">
-                        <button onClick={() => setSettingsTab("integrations")} className="text-white/40 hover:text-white text-sm">← Back</button>
+                        <button onClick={() => setSettingsTab("integrations")} className="text-white/40 hover:text-white text-sm">Back</button>
                         <h2 className="text-lg font-semibold">Shopify</h2>
                         {shopifyConnected && <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/15 border border-green-500/30 text-green-400">Connected</span>}
                       </div>
@@ -3276,7 +3309,7 @@ export default function DashboardPage() {
                   {settingsTab === "branding" && (
                     <div className="max-w-md">
                       <div className="flex items-center gap-3 mb-6">
-                        <button onClick={() => setSettingsTab("integrations")} className="text-white/40 hover:text-white text-sm">← Back</button>
+                        <button onClick={() => setSettingsTab("integrations")} className="text-white/40 hover:text-white text-sm">Back</button>
                         <h2 className="text-lg font-semibold">Brand Watermark</h2>
                       </div>
                       <div className="space-y-4">
@@ -3358,6 +3391,28 @@ export default function DashboardPage() {
                           Save Settings
                         </button>
 
+                        <button
+                          onClick={async () => {
+                            setBrandingPreviewing(true)
+                            setBrandingPreviewUrl(null)
+                            const res = await fetch("/api/settings/branding/test")
+                            const data = await res.json()
+                            if (data.previewUrl) setBrandingPreviewUrl(data.previewUrl)
+                            setBrandingPreviewing(false)
+                          }}
+                          disabled={!brandingLogoUrl || brandingPreviewing}
+                          className="w-full py-2.5 rounded-xl border border-violet-500/30 text-violet-300 text-sm font-medium hover:bg-violet-500/10 transition-colors disabled:opacity-40"
+                        >
+                          {brandingPreviewing ? "Generating preview..." : "Test Watermark Preview"}
+                        </button>
+
+                        {brandingPreviewUrl && (
+                          <div className="mt-3 rounded-xl overflow-hidden border border-white/10">
+                            <img src={brandingPreviewUrl} alt="Branding preview" className="w-full"/>
+                            <p className="text-xs text-white/30 text-center py-2">Preview — watermark on a sample image</p>
+                          </div>
+                        )}
+
                         {brandingLogoUrl && (
                           <button
                             onClick={async () => {
@@ -3385,10 +3440,10 @@ export default function DashboardPage() {
       {/* ── Share Modal ── */}
       {shareProject && (
         <div
-          className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-4"
+          className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"
           onClick={(e) => { if (e.target === e.currentTarget) setShareProject(null); }}
         >
-          <div className="bg-[#111] border border-white/[0.08] rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+          <div className="bg-[#111] border border-white/[0.08] rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg h-[88svh] sm:h-auto sm:max-h-[90vh] flex flex-col overflow-hidden">
 
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.07] flex-shrink-0">
@@ -3418,7 +3473,7 @@ export default function DashboardPage() {
                       : "text-white/40 border-transparent hover:text-white/70"
                   }`}
                 >
-                  {tab === "social" ? "Social" : tab === "woocommerce" ? "🛍️ WooCommerce" : "🟦 Shopify"}
+                  {tab === "social" ? "Social" : tab === "woocommerce" ? "WooCommerce" : "Shopify"}
                 </button>
               ))}
             </div>
@@ -3497,7 +3552,7 @@ export default function DashboardPage() {
                         Generating…
                       </>
                     ) : (
-                      <>{shareCaption ? "✨ Regenerate" : "✨ Generate Caption"}</>
+                      <>{shareCaption ? "Regenerate" : "Generate Caption"}</>
                     )}
                   </button>
 
@@ -3534,7 +3589,6 @@ export default function DashboardPage() {
                         onClick={() => handleShareTo(p.id)}
                         className="flex items-center gap-3 p-3 rounded-xl border border-white/[0.07] bg-white/[0.02] hover:bg-white/[0.05] hover:border-violet-500/30 transition-all text-left"
                       >
-                        <span className="text-2xl leading-none flex-shrink-0">{p.icon}</span>
                         <div className="min-w-0">
                           <p className="text-sm font-medium text-white/80">{p.name}</p>
                           <p className="text-[10px] text-white/30 mt-0.5 leading-tight">{p.hint}</p>
@@ -3561,8 +3615,7 @@ export default function DashboardPage() {
                 {/* Not connected */}
                 {wcShareConnected === false && (
                   <div className="text-center py-10 space-y-4">
-                    <div className="text-3xl">🛍️</div>
-                    <p className="text-white/60 text-sm">Connect WooCommerce in Settings → Integrations first</p>
+                    <p className="text-white/60 text-sm">Connect WooCommerce in Settings first</p>
                     <button
                       onClick={() => { setShareProject(null); setActiveNav("settings"); }}
                       className="px-5 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-sm font-medium transition-colors"
@@ -3672,7 +3725,7 @@ export default function DashboardPage() {
                           <span className="w-3.5 h-3.5 rounded-full border border-white/40 border-t-white animate-spin" />
                           Generating…
                         </>
-                      ) : "✨ Generate All with AI"}
+                      ) : "Generate All with AI"}
                     </button>
 
                     {/* Product Title */}
@@ -4053,8 +4106,7 @@ export default function DashboardPage() {
 
                 {shopifyShareConnected === false && (
                   <div className="text-center py-10 space-y-4">
-                    <div className="text-3xl">🟦</div>
-                    <p className="text-white/60 text-sm">Connect Shopify in Settings → Integrations first</p>
+                    <p className="text-white/60 text-sm">Connect Shopify in Settings first</p>
                     <button
                       onClick={() => { setShareProject(null); setActiveNav("settings"); }}
                       className="px-5 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-sm font-medium transition-colors"
@@ -4210,6 +4262,78 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+
+      {/* ── Mobile Credits Bar (above bottom nav) ── */}
+      {creditInfo && (
+        <div className="fixed bottom-16 left-0 right-0 z-40 flex md:hidden items-center gap-3 px-4 py-2 bg-[#080808]/95 border-t border-white/[0.04]">
+          <div className="flex-1 h-1 bg-white/10 rounded-full overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all ${
+                creditInfo.percentage > 80 ? "bg-red-500" :
+                creditInfo.percentage > 60 ? "bg-amber-500" : "bg-violet-500"
+              }`}
+              style={{ width: `${Math.min(creditInfo.percentage, 100)}%` }}
+            />
+          </div>
+          <span className="text-[10px] text-white/40 whitespace-nowrap flex-shrink-0">
+            {creditInfo.credits} credits
+          </span>
+        </div>
+      )}
+
+      {/* ── Prompt Preview Modal ── */}
+      {showPromptPreview && (
+        <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={e => { if (e.target === e.currentTarget) setShowPromptPreview(false) }}>
+          <div className="bg-[#111] border border-white/[0.08] rounded-2xl w-full max-w-lg p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Review Your Prompt</h3>
+              <button onClick={() => setShowPromptPreview(false)} className="text-white/40 hover:text-white">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+
+            <div className="bg-white/[0.03] border border-white/[0.07] rounded-xl p-4">
+              <p className="text-sm text-white/80 leading-relaxed">{editablePrompt}</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 text-xs text-white/40">
+              <div><span className="text-white/60">Gender:</span> {gender}</div>
+              <div><span className="text-white/60">Ethnicity:</span> {ethnicity}</div>
+              <div><span className="text-white/60">Occasion:</span> {occasion}</div>
+              <div><span className="text-white/60">Background:</span> {background}</div>
+              <div><span className="text-white/60">Sides:</span> {sides.join(", ")}</div>
+              <div><span className="text-white/60">Images:</span> {numImages} per side</div>
+            </div>
+
+            <div className="flex gap-3">
+              <button onClick={() => setShowPromptPreview(false)}
+                className="flex-1 py-2.5 rounded-xl border border-white/[0.07] text-sm text-white/60 hover:text-white transition-colors">
+                Edit Prompt
+              </button>
+              <button onClick={() => { setShowPromptPreview(false); handleGenerate(); }}
+                className="flex-1 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-sm font-medium text-white transition-colors">
+                Generate
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Mobile Bottom Nav ── */}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 h-16 border-t border-white/[0.06] bg-[#080808]/90 backdrop-blur-sm flex md:hidden items-center">
+        {NAV_ITEMS.map(item => (
+          <button key={item.id} onClick={() => setActiveNav(item.id)}
+            className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${
+              activeNav === item.id ? "text-violet-400" : "text-white/40"
+            }`}>
+            {item.icon}
+            <span className="text-[10px]">{item.label}</span>
+          </button>
+        ))}
+      </nav>
 
     </div>
   );

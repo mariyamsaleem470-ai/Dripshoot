@@ -44,11 +44,25 @@ model Project {
   gender    String
   ethnicity String
   occasion  String
+  prompt    String?
   createdAt DateTime         @default(now())
   user      User             @relation(fields: [userId], references: [id])
   uploads   Upload[]
   images    GeneratedImage[]
   reels     Reel[]
+}
+
+model Plan {
+  id            String   @id @default(cuid())
+  name          String   @unique
+  credits       Int
+  creditsLimit  Int
+  priceUsd      Float
+  pricePkr      Float
+  stripePriceId String?
+  features      String[]
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
 }
 
 model Reel {

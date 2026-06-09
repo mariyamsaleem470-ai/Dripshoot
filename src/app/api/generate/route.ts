@@ -105,13 +105,15 @@ async function uploadToCloudinary(
   });
 
   if (brandingLogoPublicId) {
+    const sanitizedPublicId = brandingLogoPublicId.replace(/\//g, ":");
+
     const brandedUrl = cloudinary.url(result.public_id, {
       transformation: [
         {
-          overlay: brandingLogoPublicId.replace(/\//g, ":"),
-          gravity: brandingPosition || "south_east",
+          overlay: sanitizedPublicId,
+          gravity: brandingPosition?.replace("_", "") || "southeast",
           width: brandingSize || 150,
-          opacity: brandingOpacity || 70,
+          crop: "scale",
           x: 20,
           y: 20,
         },
@@ -252,6 +254,14 @@ export async function POST(request: Request) {
 
   const allImages: string[] = [];
 
+  const builtPrompt = buildPrompt(
+    resolvedCategory, sidesArr[0], gender, ethnicity, occasion,
+    resolvedAgeGroup, resolvedBackground,
+    fabricStyle as string | undefined,
+    suitStyle as string | undefined,
+  );
+  const savedPrompt = (customPrompt as string | undefined) || builtPrompt;
+
   for (const side of sidesArr) {
     const prompt = (customPrompt as string | undefined) || buildPrompt(
       resolvedCategory, side, gender, ethnicity, occasion,
@@ -307,6 +317,7 @@ export async function POST(request: Request) {
         gender,
         ethnicity,
         occasion,
+        prompt: savedPrompt,
         uploads: { create: [{ imageUrl: garmentImageUrl }] },
         images: { create: allImages.map((imageUrl) => ({ imageUrl })) },
       },
