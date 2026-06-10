@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import { UserButton } from "@clerk/nextjs";
 import Container from "@/components/Container";
 
@@ -18,6 +19,8 @@ type ReelTemplate = "ken-burns" | "zoom-out" | "pan-left" | "pan-right" | "fade-
 type MusicTrack = "track-1" | "track-2" | "custom";
 type SharePlatform = "Instagram" | "Facebook" | "TikTok" | "Twitter";
 type ClothingType = "stitched" | "unstitched";
+type ToastType = "success" | "error" | "warning" | "info"
+type Toast = { id: string; message: string; type: ToastType }
 
 type ProjectImage = { id: string; imageUrl: string };
 type ProjectUpload = { id: string; imageUrl: string };
@@ -589,6 +592,21 @@ export default function DashboardPage() {
   const [wcAttrValueInput, setWcAttrValueInput]           = useState("");
   const [creditInfo, setCreditInfo] = useState<{ plan: string; credits: number; creditsUsed: number; creditsLimit: number; percentage: number } | null>(null);
 
+  // ── Toast state ──────────────────────────────────────────────────────────
+  const [toasts, setToasts] = useState<Toast[]>([])
+
+  const showToast = (message: string, type: ToastType = "info") => {
+    const id = Math.random().toString(36).slice(2)
+    setToasts(prev => [...prev, { id, message, type }])
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id))
+    }, 4000)
+  }
+
+  const dismissToast = (id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id))
+  }
+
   // ── Branding state ────────────────────────────────────────────────────────
   const [brandingLogoUrl, setBrandingLogoUrl] = useState<string | null>(null)
   const [brandingPosition, setBrandingPosition] = useState("south_east")
@@ -601,7 +619,10 @@ export default function DashboardPage() {
   const brandingFileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    fetch("/api/credits").then((r) => r.json()).then(setCreditInfo);
+    fetch("/api/credits")
+      .then((r) => r.json())
+      .then(setCreditInfo)
+      .catch(() => showToast("Failed to load credit info.", "warning"));
   }, []);
 
   useEffect(() => {
@@ -610,7 +631,7 @@ export default function DashboardPage() {
     fetch("/api/projects")
       .then((r) => r.json())
       .then((d) => { setProjects(d.projects ?? []); setProjectsPage(1); })
-      .catch(() => setProjects([]))
+      .catch(() => { setProjects([]); showToast("Failed to load projects.", "error"); })
       .finally(() => setProjectsLoading(false));
   }, [activeNav]);
 
@@ -724,7 +745,12 @@ export default function DashboardPage() {
       form.append("file", file);
       const res = await fetch("/api/upload", { method: "POST", body: form });
       const data = await res.json();
-      if (res.ok) setUploadedUrl(data.url);
+      if (res.ok) {
+        setUploadedUrl(data.url);
+        showToast("Image uploaded successfully!", "success");
+      } else {
+        showToast("Upload failed. Please try again.", "error");
+      }
     } finally {
       setUploading(false);
     }
@@ -820,9 +846,24 @@ export default function DashboardPage() {
         body: JSON.stringify({ garmentImageUrl: uploadedUrl, gender, ethnicity, occasion, ageGroup, category: "clothing", background, sides, numImages, quality: "standard", fabricStyle: clothingStyle, clothingType, customPrompt: editablePrompt || undefined }),
       });
       const data = await res.json();
+
+      if (!res.ok) {
+        if (data.error === "insufficient_credits") {
+          showToast(`Not enough credits. Need ${data.required}, have ${data.available}. Please upgrade.`, "error")
+        } else if (data.error?.includes("not found")) {
+          showToast("Image not found. Please upload your garment again.", "error")
+        } else if (data.error?.includes("FASHN")) {
+          showToast("AI generation failed. Please try again in a moment.", "error")
+        } else {
+          showToast(data.error || "Generation failed. Please try again.", "error")
+        }
+        return
+      }
+
       setProgressPct(100);
       await new Promise((r) => setTimeout(r, 450));
       setResults(data.images);
+      showToast(`${data.images.length} images generated successfully!`, "success")
     } finally {
       setGenerating(false);
     }
@@ -848,6 +889,9 @@ export default function DashboardPage() {
       a.download = `${project.name.replace(/[^a-z0-9]/gi, "-")}.zip`;
       a.click();
       URL.revokeObjectURL(url);
+      showToast("Images downloaded successfully!", "success")
+    } catch {
+      showToast("Download failed. Please try again.", "error")
     } finally {
       setDownloadingProjectId(null);
     }
@@ -856,6 +900,7 @@ export default function DashboardPage() {
   const handleEditAndRegenerate = (project: Project) => {
     const garmentUrl = project.uploads[0]?.imageUrl;
     if (!garmentUrl) return;
+    showToast("Project loaded for editing.", "info");
     setUploadedUrl(garmentUrl);
     setUploaded(garmentUrl);
     setGender(project.gender as GenderType);
@@ -954,9 +999,12 @@ export default function DashboardPage() {
         }),
       });
       const data = await res.json();
-      if (data.caption) setShareCaption(data.caption);
+      if (data.caption) {
+        setShareCaption(data.caption);
+        showToast("Caption generated!", "success");
+      }
     } catch {
-      // silently skip
+      showToast("Failed to generate caption. Please try again.", "error");
     } finally {
       setShareCaptionLoading(false);
     }
@@ -967,6 +1015,7 @@ export default function DashboardPage() {
     navigator.clipboard.writeText(shareCaption).catch(() => {});
     setShareCopied(true);
     setTimeout(() => setShareCopied(false), 2000);
+    showToast("Caption copied to clipboard!", "success");
   };
 
   const handleShareTo = (platform: SharePlatform) => {
@@ -1049,11 +1098,14 @@ export default function DashboardPage() {
       if (data.success) {
         setWcPublishStep("Done!");
         setWcProductUrl(data.productUrl ?? "");
+        showToast("Product published to WooCommerce!", "success");
       } else {
         setWcPublishError(data.error ?? "Something went wrong.");
+        showToast(data.error ?? "Failed to publish to WooCommerce.", "error");
       }
     } catch {
       setWcPublishError("Request failed. Please try again.");
+      showToast("Request failed. Please try again.", "error");
     } finally {
       setWcPublishing(false);
     }
@@ -1080,7 +1132,6 @@ export default function DashboardPage() {
     setAiVideoGenerating(true);
     setAiVideoProgress(0);
     setAiVideoOutputUrls([]);
-    setAiVideoError(null);
 
     let prog = 0;
     const timer = setInterval(() => {
@@ -1138,8 +1189,13 @@ export default function DashboardPage() {
       clearInterval(timer);
       setAiVideoProgress(100);
       setAiVideoOutputUrls(outputs);
+      if (outputs.length > 0) {
+        showToast("Video reel generated successfully!", "success");
+      } else {
+        showToast("Video generation failed. Please try again.", "error");
+      }
     } catch {
-      setAiVideoError("Request failed. Please try again.");
+      showToast("Request failed. Please try again.", "error");
     } finally {
       clearInterval(timer);
       setAiVideoGenerating(false);
@@ -1581,6 +1637,7 @@ export default function DashboardPage() {
     a.download = "dripshoots-results.zip";
     a.click();
     URL.revokeObjectURL(url);
+    showToast("Images downloaded successfully!", "success");
   };
 
   const stepSequence = [1, 2, 4, 5, 3, 6, 7, 8, 9, 11];
@@ -2584,9 +2641,6 @@ export default function DashboardPage() {
                                 </div>
                               </div>
                             )}
-                            {aiVideoError && (
-                              <p className="mt-3 text-xs text-red-400 text-center">{aiVideoError}</p>
-                            )}
                           </div>
                         )}
 
@@ -3469,11 +3523,10 @@ export default function DashboardPage() {
                             </button>
                           </div>
                         </div>
-                        {wcError && <p className="text-red-400 text-xs">{wcError}</p>}
                         <button
                           disabled={wcConnecting}
                           onClick={async () => {
-                            setWcConnecting(true); setWcError("");
+                            setWcConnecting(true);
                             const res = await fetch("/api/settings/woocommerce", {
                               method: "POST",
                               headers: { "Content-Type": "application/json" },
@@ -3481,7 +3534,7 @@ export default function DashboardPage() {
                             });
                             const data = await res.json();
                             setWcConnecting(false);
-                            if (data.success) { setWcConnected(true); } else { setWcError(data.error ?? "Something went wrong."); }
+                            if (data.success) { setWcConnected(true); showToast("WooCommerce connected successfully!", "success"); } else { showToast(data.error ?? "Connection failed. Check your credentials.", "error"); }
                           }}
                           className="w-full py-2 rounded-lg bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-sm font-medium transition-colors"
                         >
@@ -3519,11 +3572,10 @@ export default function DashboardPage() {
                           </div>
                           <p className="text-[10px] text-white/20 mt-1">Shopify Admin → Settings → Apps → Develop apps → Create app → Admin API access token</p>
                         </div>
-                        {shopifyError && <p className="text-red-400 text-xs">{shopifyError}</p>}
                         <button
                           disabled={shopifyConnecting}
                           onClick={async () => {
-                            setShopifyConnecting(true); setShopifyError("");
+                            setShopifyConnecting(true);
                             const res = await fetch("/api/settings/shopify", {
                               method: "POST",
                               headers: { "Content-Type": "application/json" },
@@ -3531,7 +3583,7 @@ export default function DashboardPage() {
                             });
                             const data = await res.json();
                             setShopifyConnecting(false);
-                            if (data.success) { setShopifyConnected(true); } else { setShopifyError(data.error ?? "Connection failed."); }
+                            if (data.success) { setShopifyConnected(true); showToast("Shopify connected successfully!", "success"); } else { showToast(data.error ?? "Connection failed. Check your store URL and token.", "error"); }
                           }}
                           className="w-full py-2 rounded-lg bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-sm font-medium transition-colors"
                         >
@@ -3569,7 +3621,7 @@ export default function DashboardPage() {
                               form.append("opacity", String(brandingOpacity));
                               const res = await fetch("/api/settings/branding", { method: "POST", body: form });
                               const data = await res.json();
-                              if (data.brandingLogoUrl) setBrandingLogoUrl(data.brandingLogoUrl);
+                              if (data.brandingLogoUrl) { setBrandingLogoUrl(data.brandingLogoUrl); showToast("Brand logo uploaded!", "success"); }
                               setBrandingUploading(false); setBrandingSaved(true);
                               setTimeout(() => setBrandingSaved(false), 2000);
                             }}
@@ -3621,6 +3673,7 @@ export default function DashboardPage() {
                             form.append("opacity", String(brandingOpacity));
                             await fetch("/api/settings/branding", { method: "POST", body: form });
                             setBrandingSaved(true); setTimeout(() => setBrandingSaved(false), 2000);
+                            showToast("Branding settings saved!", "success");
                           }}
                           className="w-full py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-sm font-medium transition-colors"
                         >
@@ -3633,7 +3686,7 @@ export default function DashboardPage() {
                             setBrandingPreviewUrl(null)
                             const res = await fetch("/api/settings/branding/test")
                             const data = await res.json()
-                            if (data.previewUrl) setBrandingPreviewUrl(data.previewUrl)
+                            if (data.previewUrl) { setBrandingPreviewUrl(data.previewUrl); showToast("Preview generated!", "success"); }
                             setBrandingPreviewing(false)
                           }}
                           disabled={!brandingLogoUrl || brandingPreviewing}
@@ -3654,6 +3707,7 @@ export default function DashboardPage() {
                             onClick={async () => {
                               await fetch("/api/settings/branding", { method: "DELETE" });
                               setBrandingLogoUrl(null);
+                              showToast("Watermark removed.", "info");
                             }}
                             className="w-full py-2 rounded-xl border border-white/[0.07] text-xs text-white/40 hover:text-red-400 transition-colors"
                           >
@@ -4445,18 +4499,11 @@ export default function DashboardPage() {
                       </div>
                     </div>
 
-                    {shopifyPublishError && (
-                      <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30">
-                        <p className="text-red-400 text-xs">{shopifyPublishError}</p>
-                      </div>
-                    )}
-
                     {!shopifyProductUrl && (
                       <button
                         disabled={shopifyPublishing || !shopifyPrice || shopifyImages.length === 0}
                         onClick={async () => {
                           setShopifyPublishing(true)
-                          setShopifyPublishError("")
                           const res = await fetch("/api/shopify/publish", {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
@@ -4473,8 +4520,9 @@ export default function DashboardPage() {
                           setShopifyPublishing(false)
                           if (data.success) {
                             setShopifyProductUrl(data.productUrl)
+                            showToast("Product published to Shopify!", "success")
                           } else {
-                            setShopifyPublishError(data.error ?? "Failed to publish.")
+                            showToast(data.error ?? "Failed to publish to Shopify.", "error")
                           }
                         }}
                         className={`w-full py-3 rounded-xl text-sm font-medium transition-colors ${
@@ -4717,6 +4765,43 @@ export default function DashboardPage() {
           </button>
         ))}
       </nav>
+
+      {/* ── Toast Container ── */}
+      <div className="fixed top-6 right-6 z-[500] flex flex-col gap-3 pointer-events-none">
+        <AnimatePresence>
+          {toasts.map(toast => (
+            <motion.div
+              key={toast.id}
+              initial={{ opacity: 0, x: 60, scale: 0.9 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              exit={{ opacity: 0, x: 60, scale: 0.9 }}
+              transition={{ type: "spring", stiffness: 300, damping: 25 }}
+              className={`pointer-events-auto flex items-start gap-3 px-4 py-3 rounded-2xl border shadow-2xl max-w-sm backdrop-blur-sm ${
+                toast.type === "success" ? "bg-emerald-500/15 border-emerald-500/30" :
+                toast.type === "error"   ? "bg-red-500/15 border-red-500/30" :
+                toast.type === "warning" ? "bg-amber-500/15 border-amber-500/30" :
+                                           "bg-violet-500/15 border-violet-500/30"
+              }`}
+            >
+              <span className="mt-0.5 text-base shrink-0">
+                {toast.type === "success" ? "✓" :
+                 toast.type === "error"   ? "✕" :
+                 toast.type === "warning" ? "⚠" : "ℹ"}
+              </span>
+              <p className={`text-sm font-medium flex-1 ${
+                toast.type === "success" ? "text-emerald-300" :
+                toast.type === "error"   ? "text-red-300" :
+                toast.type === "warning" ? "text-amber-300" :
+                                           "text-violet-300"
+              }`}>{toast.message}</p>
+              <button
+                onClick={() => dismissToast(toast.id)}
+                className="text-white/30 hover:text-white/60 text-xs ml-1 shrink-0 transition-colors"
+              >✕</button>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
 
     </div>
   );
