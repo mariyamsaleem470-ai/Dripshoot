@@ -523,6 +523,7 @@ export default function DashboardPage() {
   const [aiVideoProgress, setAiVideoProgress] = useState(0);
   const [aiVideoOutputUrls, setAiVideoOutputUrls] = useState<string[]>([]);
   const [aiVideoError, setAiVideoError] = useState<string | null>(null);
+  const [showVideoPromptPreview, setShowVideoPromptPreview] = useState(false);
 
   // ── WooCommerce / Integrations state ──────────────────────────────────────
   const [activeIntegration, setActiveIntegration] = useState<string | null>(null);
@@ -1073,32 +1074,27 @@ export default function DashboardPage() {
     setAiVideoOutputUrls([]);
     setAiVideoError(null);
 
-    const outputs: string[] = [];
-
-    for (let i = 0; i < aiVideoImages.length; i++) {
-      const imageUrl = aiVideoImages[i];
-      setAiVideoProgress(Math.round((i / aiVideoImages.length) * 90));
-      try {
-        const res = await fetch("/api/video", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            imageUrl,
-            duration: aiVideoDuration,
-            resolution: aiVideoResolution,
-            motionPrompt: aiVideoMotionPrompt.trim() || undefined,
-          }),
-        });
-        const data = await res.json();
-        if (data.videoUrl) outputs.push(data.videoUrl);
-        else if (data.error) setAiVideoError(data.error);
-      } catch (err) {
-        console.error("Video generation error:", err);
-      }
+    try {
+      const res = await fetch("/api/video", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          imageUrl: aiVideoImages[0],
+          endImageUrl: aiVideoImages.length > 1 ? aiVideoImages[1] : undefined,
+          duration: 10,
+          resolution: aiVideoResolution,
+          motionPrompt: aiVideoMotionPrompt.trim() || undefined,
+        }),
+      });
+      setAiVideoProgress(90);
+      const data = await res.json();
+      if (data.videoUrl) setAiVideoOutputUrls([data.videoUrl]);
+      else if (data.error) setAiVideoError(data.error);
+    } catch (err) {
+      console.error("Video generation error:", err);
     }
 
     setAiVideoProgress(100);
-    setAiVideoOutputUrls(outputs);
     setAiVideoGenerating(false);
   };
 
@@ -1149,6 +1145,7 @@ export default function DashboardPage() {
     setAiVideoGenerating(false);
     setAiVideoMotionPrompt("");
     setAiVideoError(null);
+    setShowVideoPromptPreview(false);
     setReelMode("fashn");
     if (fileRef.current) fileRef.current.value = "";
     if (musicFileRef.current) musicFileRef.current.value = "";
@@ -2325,7 +2322,7 @@ export default function DashboardPage() {
                           <div>
                             <button
                               disabled={!aiVideoImages.length || aiVideoGenerating}
-                              onClick={handleGenerateAiVideo}
+                              onClick={() => setShowVideoPromptPreview(true)}
                               className={`w-full py-3.5 rounded-xl text-sm font-medium transition-colors ${
                                 aiVideoImages.length && !aiVideoGenerating
                                   ? "bg-violet-600 hover:bg-violet-500 text-white"
@@ -4282,6 +4279,78 @@ export default function DashboardPage() {
           <span className="text-[10px] text-white/40 whitespace-nowrap flex-shrink-0">
             {creditInfo.credits} credits
           </span>
+        </div>
+      )}
+
+      {/* ── Video Prompt Preview Modal ── */}
+      {showVideoPromptPreview && (
+        <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={e => { if (e.target === e.currentTarget) setShowVideoPromptPreview(false) }}>
+          <div className="bg-[#111] border border-white/[0.08] rounded-2xl w-full max-w-lg p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Review Video Generation</h3>
+              <button onClick={() => setShowVideoPromptPreview(false)} className="text-white/40 hover:text-white">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+
+            <div className="bg-white/[0.03] border border-white/[0.07] rounded-xl p-4 space-y-3">
+              <div className="flex justify-between text-sm">
+                <span className="text-white/40">Duration</span>
+                <span className="text-white/80 font-medium">10 seconds</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-white/40">Resolution</span>
+                <span className="text-white/80 font-medium">{aiVideoResolution}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-white/40">Images</span>
+                <span className="text-white/80 font-medium">
+                  {aiVideoImages.length === 1 ? "1 image (start frame only)" : "2 images (start + end frame)"}
+                </span>
+              </div>
+              {aiVideoImages.length > 0 && (
+                <div className="flex gap-3 mt-1">
+                  {aiVideoImages.map((url, i) => (
+                    <div key={i} className="relative flex flex-col items-center gap-1">
+                      <img src={url} alt="" className="w-20 h-24 object-cover rounded-xl border border-white/10"/>
+                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                        i === 0
+                          ? "bg-violet-500/20 border border-violet-500/30 text-violet-300"
+                          : "bg-fuchsia-500/20 border border-fuchsia-500/30 text-fuchsia-300"
+                      }`}>
+                        {i === 0 ? "START" : "END"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {aiVideoMotionPrompt && (
+                <div className="pt-2 border-t border-white/[0.07]">
+                  <p className="text-xs text-white/40 mb-1">Motion prompt:</p>
+                  <p className="text-sm text-white/80 italic leading-relaxed">&ldquo;{aiVideoMotionPrompt}&rdquo;</p>
+                </div>
+              )}
+              {!aiVideoMotionPrompt && (
+                <div className="pt-2 border-t border-white/[0.07]">
+                  <p className="text-xs text-white/30 italic">No motion prompt — AI will decide automatically</p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3">
+              <button onClick={() => setShowVideoPromptPreview(false)}
+                className="flex-1 py-2.5 rounded-xl border border-white/[0.07] text-sm text-white/60 hover:text-white transition-colors">
+                Edit
+              </button>
+              <button onClick={() => { setShowVideoPromptPreview(false); handleGenerateAiVideo(); }}
+                className="flex-1 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-sm font-medium text-white transition-colors">
+                Generate Video
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

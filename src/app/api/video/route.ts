@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     update: { email },
   });
 
-  const { imageUrl, duration, resolution, motionPrompt } = await request.json();
+  const { imageUrl, endImageUrl, duration, resolution, motionPrompt } = await request.json();
 
   const apiKey = process.env.FASHN_API_KEY;
   if (!apiKey) return Response.json({ error: "FASHN_API_KEY not configured" }, { status: 500 });
@@ -59,17 +59,10 @@ export async function POST(request: NextRequest) {
       model_name: "image-to-video",
       inputs: {
         image: imageUrl,
-        duration: resolvedDuration,
-        resolution: resolvedResolution,
-        prompt: [
-          motionPrompt || "model walking gracefully",
-          "cinematic camera movement",
-          "smooth slow motion",
-          "professional fashion film",
-          "high end editorial style",
-          "soft bokeh background",
-          "dramatic lighting",
-        ].join(", "),
+        ...(endImageUrl ? { end_image: endImageUrl } : {}),
+        duration: Math.max(10, duration || 10),
+        resolution: resolution || "720p",
+        ...(motionPrompt ? { motion: motionPrompt } : {}),
       },
     }),
   });
