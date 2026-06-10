@@ -2791,8 +2791,8 @@ export default function DashboardPage() {
                             </div>
 
                             {project.prompt && (
-                              <div className="mt-2 mb-1">
-                                <p className="text-[10px] text-white/30 line-clamp-2 italic">
+                              <div className="mt-2">
+                                <p className="text-[10px] text-white/25 line-clamp-2 italic leading-relaxed">
                                   &ldquo;{project.prompt}&rdquo;
                                 </p>
                               </div>
@@ -4299,8 +4299,16 @@ export default function DashboardPage() {
               </button>
             </div>
 
-            <div className="bg-white/[0.03] border border-white/[0.07] rounded-xl p-4">
-              <p className="text-sm text-white/80 leading-relaxed">{editablePrompt}</p>
+            <div className="bg-white/[0.03] border border-white/[0.07] rounded-xl p-4 space-y-3">
+              {sides.map(side => {
+                const sideHint = side !== "front" ? `, ${side.replace(/-/g, " ")} view` : ""
+                return (
+                  <div key={side} className="space-y-1">
+                    <p className="text-xs text-violet-400 uppercase tracking-wider capitalize">{side.replace(/-/g, " ")} view</p>
+                    <p className="text-sm text-white/80 leading-relaxed">{editablePrompt + sideHint}</p>
+                  </div>
+                )
+              })}
             </div>
 
             <div className="grid grid-cols-2 gap-3 text-xs text-white/40">

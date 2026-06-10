@@ -253,14 +253,7 @@ export async function POST(request: Request) {
   if (!apiKey) return Response.json({ error: "FASHN_API_KEY not configured" }, { status: 500 });
 
   const allImages: string[] = [];
-
-  const builtPrompt = buildPrompt(
-    resolvedCategory, sidesArr[0], gender, ethnicity, occasion,
-    resolvedAgeGroup, resolvedBackground,
-    fabricStyle as string | undefined,
-    suitStyle as string | undefined,
-  );
-  const savedPrompt = (customPrompt as string | undefined) || builtPrompt;
+  const allPrompts: string[] = [];
 
   for (const side of sidesArr) {
     const prompt = (customPrompt as string | undefined) || buildPrompt(
@@ -269,6 +262,7 @@ export async function POST(request: Request) {
       fabricStyle as string | undefined,
       suitStyle as string | undefined,
     );
+    allPrompts.push(prompt);
     console.log(`[/api/generate] side="${side}" quality="${resolvedQuality}" prompt="${prompt}"`);
 
     let generatedUrls: string[] = [];
@@ -317,7 +311,7 @@ export async function POST(request: Request) {
         gender,
         ethnicity,
         occasion,
-        prompt: savedPrompt,
+        prompt: allPrompts.join(" | "),
         uploads: { create: [{ imageUrl: garmentImageUrl }] },
         images: { create: allImages.map((imageUrl) => ({ imageUrl })) },
       },
