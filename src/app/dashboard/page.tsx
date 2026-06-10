@@ -405,10 +405,14 @@ function renderPlaceholder(label: string, title: string) {
 }
 
 function getImageUrl(url: string): string {
-  if (url.startsWith("/generated/") || url.startsWith("/uploads/")) {
-    return `http://153.92.209.231${url}`;
+  if (!url) return ""
+  if (url.startsWith("http://") || url.startsWith("https://")) {
+    return url
   }
-  return url;
+  if (url.startsWith("/uploads/") || url.startsWith("/generated/")) {
+    return `https://dripshoots.com${url}`
+  }
+  return url
 }
 
 // ─── Dashboard Page ───────────────────────────────────────────────────────────

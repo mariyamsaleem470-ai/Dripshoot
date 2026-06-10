@@ -11,7 +11,9 @@
   "dependencies": {
     "@clerk/nextjs": "^7.3.3",
     "@prisma/client": "^5.22.0",
+    "bullmq": "^5.78.0",
     "cloudinary": "^2.10.0",
+    "ioredis": "^5.11.1",
     "jszip": "^3.10.1",
     "next": "16.2.6",
     "prisma": "^5.22.0",

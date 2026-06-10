@@ -111,7 +111,7 @@ async function uploadToCloudinary(
       transformation: [
         {
           overlay: sanitizedPublicId,
-          gravity: brandingPosition?.replace("_", "") || "southeast",
+          gravity: brandingPosition || "south_east",
           width: brandingSize || 150,
           crop: "scale",
           x: 20,

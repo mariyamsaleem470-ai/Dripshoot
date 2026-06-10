@@ -26,25 +26,34 @@ export async function GET() {
     return Response.json({ error: "No logo uploaded" }, { status: 400 });
   }
 
-  const testImageUrl =
-    "https://images.pexels.com/photos/1040945/pexels-photo-1040945.jpeg?w=768";
-
+  const testImageUrl = "https://images.pexels.com/photos/1040945/pexels-photo-1040945.jpeg?w=768";
   const uploaded = await cloudinary.uploader.upload(testImageUrl, {
     folder: "dripshoots/test",
   });
 
   const sanitizedPublicId = user.brandingLogoPublicId.replace(/\//g, ":");
+
+  const gravityMap: Record<string, string> = {
+    "north_west": "north_west",
+    "north_east": "north_east",
+    "south_west": "south_west",
+    "south_east": "south_east",
+  };
+  const gravity = gravityMap[user.brandingPosition ?? "south_east"] ?? "south_east";
+
   const brandedUrl = cloudinary.url(uploaded.public_id, {
     transformation: [
       {
         overlay: sanitizedPublicId,
-        gravity: user.brandingPosition?.replace("_", "") || "southeast",
-        width: user.brandingSize || 150,
+        width: user.brandingSize || 100,
         crop: "scale",
-        x: 20,
-        y: 20,
       },
-      { flags: "layer_apply" },
+      {
+        flags: "layer_apply",
+        gravity: gravity,
+        x: 15,
+        y: 15,
+      },
     ],
     secure: true,
   });
