@@ -300,6 +300,12 @@ const MUSIC_TRACKS: { id: Exclude<MusicTrack, "custom">; label: string; src: str
   { id: "track-2", label: "Editorial Luxury",  src: "/music/track-2.mp3" },
 ];
 
+const AI_VIDEO_CREDITS: Record<string, number> = {
+  "480p":  2,
+  "720p":  6,
+  "1080p": 12,
+};
+
 const SHARE_PLATFORMS: { id: SharePlatform; name: string; icon: string; hint: string }[] = [
   { id: "Instagram", name: "Instagram", icon: "", hint: "Caption copied + open app" },
   { id: "Facebook",  name: "Facebook",  icon: "", hint: "Share via Facebook"        },
@@ -524,6 +530,8 @@ export default function DashboardPage() {
   const [aiVideoOutputUrls, setAiVideoOutputUrls] = useState<string[]>([]);
   const [aiVideoError, setAiVideoError] = useState<string | null>(null);
   const [showVideoPromptPreview, setShowVideoPromptPreview] = useState(false);
+  const [showThirdImageAlert, setShowThirdImageAlert] = useState(false);
+  const pendingVideoImageRef = useRef<string | null>(null);
 
   // ── WooCommerce / Integrations state ──────────────────────────────────────
   const [activeIntegration, setActiveIntegration] = useState<string | null>(null);
@@ -1074,28 +1082,56 @@ export default function DashboardPage() {
     setAiVideoOutputUrls([]);
     setAiVideoError(null);
 
+    let prog = 0;
+    const timer = setInterval(() => {
+      prog = Math.min(prog + 1.5, 90);
+      setAiVideoProgress(Math.round(prog));
+    }, 1000);
+
     try {
-      const res = await fetch("/api/video", {
+      const outputs: string[] = [];
+
+      // Reel 1: image 1 (start) + image 2 (end) if exists
+      const res1 = await fetch("/api/video", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           imageUrl: aiVideoImages[0],
-          endImageUrl: aiVideoImages.length > 1 ? aiVideoImages[1] : undefined,
+          endImageUrl: aiVideoImages.length >= 2 ? aiVideoImages[1] : undefined,
           duration: 10,
           resolution: aiVideoResolution,
           motionPrompt: aiVideoMotionPrompt.trim() || undefined,
         }),
       });
-      setAiVideoProgress(90);
-      const data = await res.json();
-      if (data.videoUrl) setAiVideoOutputUrls([data.videoUrl]);
-      else if (data.error) setAiVideoError(data.error);
-    } catch (err) {
-      console.error("Video generation error:", err);
-    }
+      const data1 = await res1.json();
+      if (data1.videoUrl) outputs.push(data1.videoUrl);
 
-    setAiVideoProgress(100);
-    setAiVideoGenerating(false);
+      // Reel 2: if 3rd image exists, generate separate reel
+      if (aiVideoImages.length === 3) {
+        setAiVideoProgress(50);
+        const res2 = await fetch("/api/video", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            imageUrl: aiVideoImages[2],
+            duration: 10,
+            resolution: aiVideoResolution,
+            motionPrompt: aiVideoMotionPrompt.trim() || undefined,
+          }),
+        });
+        const data2 = await res2.json();
+        if (data2.videoUrl) outputs.push(data2.videoUrl);
+      }
+
+      clearInterval(timer);
+      setAiVideoProgress(100);
+      setAiVideoOutputUrls(outputs);
+    } catch {
+      setAiVideoError("Request failed. Please try again.");
+    } finally {
+      clearInterval(timer);
+      setAiVideoGenerating(false);
+    }
   };
 
   const handleReset = () => {
@@ -1146,6 +1182,8 @@ export default function DashboardPage() {
     setAiVideoMotionPrompt("");
     setAiVideoError(null);
     setShowVideoPromptPreview(false);
+    setShowThirdImageAlert(false);
+    pendingVideoImageRef.current = null;
     setReelMode("fashn");
     if (fileRef.current) fileRef.current.value = "";
     if (musicFileRef.current) musicFileRef.current.value = "";
@@ -2232,9 +2270,17 @@ export default function DashboardPage() {
                             {results.map((url, i) => (
                               <button key={i}
                                 onClick={() => {
-                                  setAiVideoImages((prev) =>
-                                    prev.includes(url) ? prev.filter((u) => u !== url) : [...prev, url]
-                                  );
+                                  if (aiVideoImages.includes(url)) {
+                                    setAiVideoImages(prev => prev.filter(u => u !== url));
+                                    setShowThirdImageAlert(false);
+                                    return;
+                                  }
+                                  if (aiVideoImages.length === 2) {
+                                    pendingVideoImageRef.current = url;
+                                    setShowThirdImageAlert(true);
+                                    return;
+                                  }
+                                  setAiVideoImages(prev => [...prev, url]);
                                 }}
                                 className={`relative flex-shrink-0 w-20 h-28 rounded-xl overflow-hidden border-2 transition-all ${
                                   aiVideoImages.includes(url) ? "border-violet-500 scale-[1.02]" : "border-white/10 hover:border-violet-500/40"
@@ -2243,16 +2289,22 @@ export default function DashboardPage() {
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img src={url} alt={`Image ${i + 1}`} className="w-full h-full object-cover" />
                                 {aiVideoImages.includes(url) && (
-                                  <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-violet-500 flex items-center justify-center">
-                                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                                      <path d="M2 5l2.5 2.5L8 3" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                    </svg>
+                                  <div className="absolute bottom-1 left-0 right-0 flex justify-center">
+                                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                                      aiVideoImages.indexOf(url) === 0
+                                        ? "bg-violet-500 text-white"
+                                        : aiVideoImages.indexOf(url) === 1
+                                        ? "bg-fuchsia-500 text-white"
+                                        : "bg-amber-500 text-white"
+                                    }`}>
+                                      {aiVideoImages.indexOf(url) === 0 ? "START" : aiVideoImages.indexOf(url) === 1 ? "END" : "EXTRA"}
+                                    </span>
                                   </div>
                                 )}
                               </button>
                             ))}
                           </div>
-                          <p className="text-xs text-white/30 mt-2">Select multiple images — a separate reel will be generated for each</p>
+                          <p className="text-xs text-white/30 mt-2">Select up to 3 images — 1st is start frame, 2nd is end frame, 3rd generates a second reel</p>
                         </div>
 
                         {/* Motion prompt */}
@@ -2330,10 +2382,18 @@ export default function DashboardPage() {
                               }`}
                             >
                               {aiVideoGenerating
-                                ? `Generating… (${aiVideoImages.length > 1 ? `${Math.round((aiVideoProgress / 100) * aiVideoImages.length)} / ${aiVideoImages.length}` : "please wait"})`
-                                : aiVideoImages.length > 1
-                                  ? `Generate ${aiVideoImages.length} AI Reels`
-                                  : "Generate AI Reel"}
+                                ? "Generating…"
+                                : <>
+                                    {aiVideoImages.length === 3 ? "Generate 2 Reels" : "Generate AI Reel"}
+                                    {aiVideoImages.length > 0 && (
+                                      <span className="text-xs text-violet-300 ml-1">
+                                        ({aiVideoImages.length === 3
+                                          ? `${AI_VIDEO_CREDITS[aiVideoResolution] * 2} credits`
+                                          : `${AI_VIDEO_CREDITS[aiVideoResolution]} credits`})
+                                      </span>
+                                    )}
+                                  </>
+                              }
                             </button>
                             {aiVideoGenerating && (
                               <div className="mt-4 space-y-2">
@@ -4282,6 +4342,48 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* ── Third Image Alert Toast ── */}
+      {showThirdImageAlert && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[300] w-full max-w-sm mx-4">
+          <div className="bg-[#1a1025] border border-amber-500/40 rounded-2xl p-4 shadow-2xl backdrop-blur-sm">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                  <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+              </div>
+              <div className="flex-1">
+                <p className="text-amber-300 text-sm font-semibold mb-1">Third image = Separate Reel</p>
+                <p className="text-white/50 text-xs leading-relaxed">
+                  A second reel will be generated using the 3rd image separately. This will cost extra credits.
+                </p>
+                <div className="flex gap-2 mt-3">
+                  <button
+                    onClick={() => setShowThirdImageAlert(false)}
+                    className="flex-1 py-1.5 rounded-lg border border-white/10 text-xs text-white/50 hover:text-white transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (pendingVideoImageRef.current) {
+                        setAiVideoImages(prev => [...prev, pendingVideoImageRef.current!]);
+                        pendingVideoImageRef.current = null;
+                      }
+                      setShowThirdImageAlert(false);
+                    }}
+                    className="flex-1 py-1.5 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-medium hover:bg-amber-500/30 transition-colors"
+                  >
+                    Add anyway (+credits)
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Video Prompt Preview Modal ── */}
       {showVideoPromptPreview && (
         <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
@@ -4308,7 +4410,11 @@ export default function DashboardPage() {
               <div className="flex justify-between text-sm">
                 <span className="text-white/40">Images</span>
                 <span className="text-white/80 font-medium">
-                  {aiVideoImages.length === 1 ? "1 image (start frame only)" : "2 images (start + end frame)"}
+                  {aiVideoImages.length === 1
+                    ? "1 image (start frame only)"
+                    : aiVideoImages.length === 2
+                    ? "2 images (start + end frame)"
+                    : "3 images (2 reels)"}
                 </span>
               </div>
               {aiVideoImages.length > 0 && (
@@ -4319,12 +4425,23 @@ export default function DashboardPage() {
                       <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
                         i === 0
                           ? "bg-violet-500/20 border border-violet-500/30 text-violet-300"
-                          : "bg-fuchsia-500/20 border border-fuchsia-500/30 text-fuchsia-300"
+                          : i === 1
+                          ? "bg-fuchsia-500/20 border border-fuchsia-500/30 text-fuchsia-300"
+                          : "bg-amber-500/20 border border-amber-500/30 text-amber-300"
                       }`}>
-                        {i === 0 ? "START" : "END"}
+                        {i === 0 ? "START" : i === 1 ? "END" : "EXTRA"}
                       </span>
                     </div>
                   ))}
+                </div>
+              )}
+              {aiVideoImages.length === 3 && (
+                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                  <p className="text-amber-300 text-xs font-medium">2 Reels will be generated</p>
+                  <p className="text-amber-300/60 text-xs mt-0.5">
+                    Reel 1: Image 1 → Image 2 (start + end frame)<br/>
+                    Reel 2: Image 3 (separate reel)
+                  </p>
                 </div>
               )}
               {aiVideoMotionPrompt && (
