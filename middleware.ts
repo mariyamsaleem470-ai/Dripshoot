@@ -1,7 +1,14 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
-const isPublicRoute = createRouteMatcher(["/", "/sign-in(.*)", "/sign-up(.*)"]);
+const isPublicRoute = createRouteMatcher([
+  "/",
+  "/sign-in(.*)",
+  "/sign-up(.*)",
+  "/how-it-works",
+  "/contact",
+  "/pricing",
+]);
 
 // Routes where we must NOT apply the status redirect (avoids infinite loops)
 const isBypassRoute = createRouteMatcher([

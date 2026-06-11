@@ -1,6 +1,8 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import { motion, AnimatePresence } from "motion/react";
+import { Play } from "lucide-react";
 
 function getExampleImageUrl(url: string): string {
   if (!url) return ""
@@ -63,10 +65,10 @@ export default function Home() {
           </a>
 
           {/* Center links */}
-          <div className="hidden md:flex items-center gap-8 text-sm" style={{ color: "rgba(248,248,248,0.5)" }}>
-            <button onClick={() => document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" })} className="hover:text-white transition-colors">How it works</button>
-            <button onClick={() => document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" })} className="hover:text-white transition-colors">Pricing</button>
-            <button onClick={() => document.getElementById("examples")?.scrollIntoView({ behavior: "smooth" })} className="hover:text-white transition-colors">Examples</button>
+          <div className="hidden md:flex items-center gap-8 text-sm">
+            <Link href="/how-it-works" className="text-white/70 hover:text-white transition-colors text-sm font-medium">How It Works</Link>
+            <button onClick={() => document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" })} className="text-white/70 hover:text-white transition-colors text-sm font-medium">Pricing</button>
+            <Link href="/contact" className="text-white/70 hover:text-white transition-colors text-sm font-medium">Contact</Link>
           </div>
 
           {/* Right */}
@@ -98,9 +100,9 @@ export default function Home() {
               className="md:hidden px-6 pb-6 flex flex-col gap-4 text-sm"
               style={{ backgroundColor: "rgba(8,8,8,0.98)", borderBottom: "1px solid rgba(255,255,255,0.07)" }}
             >
-              <button onClick={() => { document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" }); setShowMenu(false); }} className="text-left py-2" style={{ color: "rgba(248,248,248,0.6)" }}>How it works</button>
+              <Link href="/how-it-works" onClick={() => setShowMenu(false)} className="py-2 text-left text-white/70 hover:text-white transition-colors text-sm font-medium">How It Works</Link>
               <button onClick={() => { document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" }); setShowMenu(false); }} className="text-left py-2" style={{ color: "rgba(248,248,248,0.6)" }}>Pricing</button>
-              <button onClick={() => { document.getElementById("examples")?.scrollIntoView({ behavior: "smooth" }); setShowMenu(false); }} className="text-left py-2" style={{ color: "rgba(248,248,248,0.6)" }}>Examples</button>
+              <Link href="/contact" onClick={() => setShowMenu(false)} className="py-2 text-left text-white/70 hover:text-white transition-colors text-sm font-medium">Contact</Link>
               <a href="/sign-in" className="py-2" style={{ color: "rgba(248,248,248,0.6)" }}>Sign in</a>
               <a href="/sign-up" className="bg-violet-600 px-4 py-2.5 rounded-lg font-medium text-center">Start free</a>
             </motion.div>
@@ -202,6 +204,13 @@ export default function Home() {
             >
               Watch demo →
             </button>
+            <Link
+              href="/how-it-works"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white font-semibold rounded-xl transition-all text-sm shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 hover:scale-105 active:scale-95"
+            >
+              <Play className="w-4 h-4 fill-current" />
+              How It Works
+            </Link>
           </motion.div>
 
           {/* Trust row */}
@@ -1032,8 +1041,12 @@ export default function Home() {
           </div>
 
           <div className="pt-8 flex flex-col md:flex-row items-center justify-between gap-2" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-            <p className="text-xs" style={{ color: "rgba(248,248,248,0.2)" }}>© 2026 DripShoots. All rights reserved.</p>
-            <p className="text-xs" style={{ color: "rgba(248,248,248,0.2)" }}>Made with care in Karachi, Pakistan</p>
+            <div className="flex flex-wrap items-center gap-4">
+              <p className="text-xs" style={{ color: "rgba(248,248,248,0.2)" }}>© 2026 DripShoots. All rights reserved.</p>
+              <Link href="/how-it-works" className="text-xs transition-colors hover:text-white" style={{ color: "rgba(248,248,248,0.3)" }}>How it works</Link>
+              <Link href="/contact" className="text-xs transition-colors hover:text-white" style={{ color: "rgba(248,248,248,0.3)" }}>Contact</Link>
+            </div>
+            <a href="https://pbsdigitals.com" target="_blank" rel="noopener noreferrer" className="text-xs transition-colors hover:text-violet-400" style={{ color: "rgba(167,139,250,0.4)" }}>Powered by PBS Digitals</a>
           </div>
         </div>
       </footer>
