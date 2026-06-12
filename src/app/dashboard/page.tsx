@@ -511,6 +511,7 @@ export default function DashboardPage() {
   const [suitStyle, setSuitStyle] = useState("");
   const [addVideo, setAddVideo] = useState(false);
   const [selectedVideoImage, setSelectedVideoImage] = useState<string | null>(null);
+  const [canvasSelectedImages, setCanvasSelectedImages] = useState<string[]>([]);
   const [reelMode, setReelMode] = useState<"fashn" | "canvas">("fashn");
   const [reelFormat, setReelFormat] = useState<ReelFormat>("9:16");
   const [reelTemplate, setReelTemplate] = useState<ReelTemplate>("ken-burns");
@@ -527,7 +528,6 @@ export default function DashboardPage() {
   const [aiVideoImages, setAiVideoImages] = useState<string[]>([]);
   const [aiVideoDuration] = useState<number>(10);
   const [aiVideoResolution, setAiVideoResolution] = useState<"480p" | "720p" | "1080p">("720p");
-  const [aiVideoMotionPrompt, setAiVideoMotionPrompt] = useState("");
   const [aiVideoGenerating, setAiVideoGenerating] = useState(false);
   const [aiVideoProgress, setAiVideoProgress] = useState(0);
   const [aiVideoOutputUrls, setAiVideoOutputUrls] = useState<string[]>([]);
@@ -1151,7 +1151,6 @@ export default function DashboardPage() {
           endImageUrl: aiVideoImages.length >= 2 ? aiVideoImages[1] : undefined,
           duration: 10,
           resolution: aiVideoResolution,
-          motionPrompt: aiVideoMotionPrompt.trim() || undefined,
         }),
       });
       const data1 = await res1.json();
@@ -1173,7 +1172,6 @@ export default function DashboardPage() {
             imageUrl: aiVideoImages[2],
             duration: 10,
             resolution: aiVideoResolution,
-            motionPrompt: aiVideoMotionPrompt.trim() || undefined,
           }),
         });
         const data2 = await res2.json();
@@ -1226,6 +1224,7 @@ export default function DashboardPage() {
     setSuitStyle("");
     setAddVideo(false);
     setSelectedVideoImage(null);
+    setCanvasSelectedImages([]);
     setReelFormat("9:16");
     setReelTemplate("ken-burns");
     setReelDuration(10);
@@ -1247,7 +1246,6 @@ export default function DashboardPage() {
     setAiVideoOutputUrls([]);
     setAiVideoProgress(0);
     setAiVideoGenerating(false);
-    setAiVideoMotionPrompt("");
     setAiVideoError(null);
     setShowVideoPromptPreview(false);
     setShowThirdImageAlert(false);
@@ -1403,7 +1401,9 @@ export default function DashboardPage() {
       ? results
       : reelTemplate === "multi-motion"
         ? [results[0]]
-        : [selectedVideoImage ?? results[0]];
+        : canvasSelectedImages.length > 0
+          ? canvasSelectedImages
+          : [results[0]];
 
     const imgs = await Promise.all(
       imageUrls.map((url) =>
@@ -1448,12 +1448,17 @@ export default function DashboardPage() {
       ctx.fillStyle = "#000";
       ctx.fillRect(0, 0, W, H);
 
+      // For multi-image canvas, pick which image to show based on time
+      const activeImg = (reelTemplate !== "fade-slideshow" && reelTemplate !== "multi-motion" && imgs.length > 1)
+        ? imgs[Math.floor(t * imgs.length) % imgs.length]
+        : imgs[0];
+
       if (reelTemplate === "ken-burns") {
         const scale = 1 + 0.2 * e;
         const tx = -0.03 * e * W;
         const ty = -0.02 * e * H;
         const dw = W * scale, dh = H * scale;
-        drawCovered(imgs[0], (W - dw) / 2 + tx, (H - dh) / 2 + ty, dw, dh);
+        drawCovered(activeImg, (W - dw) / 2 + tx, (H - dh) / 2 + ty, dw, dh);
       } else if (reelTemplate === "zoom-out") {
         const scale = 1.3 - 0.3 * e;
         const angle = (0.5 - 0.5 * e) * Math.PI / 180;
@@ -1462,18 +1467,18 @@ export default function DashboardPage() {
         ctx.translate(W / 2, H / 2);
         ctx.rotate(angle);
         ctx.translate(-W / 2, -H / 2);
-        drawCovered(imgs[0], (W - dw) / 2, (H - dh) / 2, dw, dh);
+        drawCovered(activeImg, (W - dw) / 2, (H - dh) / 2, dw, dh);
         ctx.restore();
       } else if (reelTemplate === "pan-left") {
         const scale = 1.05 - 0.05 * e;
         const tx = (0.08 - 0.16 * e) * W;
         const dw = W * scale, dh = H * scale;
-        drawCovered(imgs[0], (W - dw) / 2 + tx, (H - dh) / 2, dw, dh);
+        drawCovered(activeImg, (W - dw) / 2 + tx, (H - dh) / 2, dw, dh);
       } else if (reelTemplate === "pan-right") {
         const scale = 1.05 - 0.05 * e;
         const tx = (-0.08 + 0.16 * e) * W;
         const dw = W * scale, dh = H * scale;
-        drawCovered(imgs[0], (W - dw) / 2 + tx, (H - dh) / 2, dw, dh);
+        drawCovered(activeImg, (W - dw) / 2 + tx, (H - dh) / 2, dw, dh);
       } else if (reelTemplate === "fade-slideshow") {
         const total = imgs.length;
         const slotSize = 1 / total;
@@ -1494,7 +1499,7 @@ export default function DashboardPage() {
         const tx = -0.03 * e * W;
         const ty = -0.02 * e * H;
         const dw = W * scale, dh = H * scale;
-        drawCovered(imgs[0], (W - dw) / 2 + tx, (H - dh) / 2 + ty, dw, dh);
+        drawCovered(activeImg, (W - dw) / 2 + tx, (H - dh) / 2 + ty, dw, dh);
         drawVignette();
         const barH = Math.round(H * 0.15);
         ctx.fillStyle = "#000";
@@ -1504,11 +1509,11 @@ export default function DashboardPage() {
         const scale = 1.1 - 0.1 * e;
         const ty = (0.05 - 0.1 * e) * H;
         const dw = W * scale, dh = H * scale;
-        drawCovered(imgs[0], (W - dw) / 2, (H - dh) / 2 + ty, dw, dh);
+        drawCovered(activeImg, (W - dw) / 2, (H - dh) / 2 + ty, dw, dh);
       } else if (reelTemplate === "pulse") {
         const scale = 1 + 0.05 * Math.sin(t * Math.PI * 4);
         const dw = W * scale, dh = H * scale;
-        drawCovered(imgs[0], (W - dw) / 2, (H - dh) / 2, dw, dh);
+        drawCovered(activeImg, (W - dw) / 2, (H - dh) / 2, dw, dh);
       } else if (reelTemplate === "multi-motion") {
         const segment = Math.min(Math.floor(t * 3), 2);
         const segT = easeInOut((t * 3) % 1);
@@ -2439,49 +2444,6 @@ export default function DashboardPage() {
                           <p className="text-xs text-white/30 mt-2">Select up to 3 images — 1st is start frame, 2nd is end frame, 3rd generates a second reel</p>
                         </div>
 
-                        {/* Motion prompt */}
-                        {!aiVideoOutputUrls.length && (
-                          <div>
-                            <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-3">
-                              Model Motion <span className="normal-case text-white/20">(optional)</span>
-                            </p>
-                            <div className="relative">
-                              <input
-                                type="text"
-                                value={aiVideoMotionPrompt}
-                                onChange={e => setAiVideoMotionPrompt(e.target.value)}
-                                placeholder="e.g. walking confidently, fabric flowing..."
-                                maxLength={200}
-                                className="w-full bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3 pr-10 text-sm text-white placeholder-white/20 focus:outline-none focus:border-violet-500/50 transition-colors"
-                              />
-                              {aiVideoMotionPrompt && (
-                                <button onClick={() => setAiVideoMotionPrompt("")}
-                                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60">
-                                  ✕
-                                </button>
-                              )}
-                            </div>
-                            <div className="flex flex-wrap gap-1.5 mt-2">
-                              {["Walking", "Fabric Flowing", "Slow Spin", "Looking at Camera", "Runway Walk"].map((pill) => (
-                                <button
-                                  key={pill}
-                                  onClick={() => setAiVideoMotionPrompt(prev =>
-                                    prev ? `${prev}, ${pill.toLowerCase()}` : pill.toLowerCase()
-                                  )}
-                                  className={`px-3 py-1 rounded-full text-xs border transition-all ${
-                                    aiVideoMotionPrompt === pill
-                                      ? "bg-violet-600/20 border-violet-500 text-violet-300"
-                                      : "bg-white/[0.03] border-white/[0.07] text-white/40 hover:border-white/20 hover:text-white/70"
-                                  }`}
-                                >
-                                  {pill}
-                                </button>
-                              ))}
-                            </div>
-                            <p className="text-[10px] text-white/30 mt-2">Keep short and concrete. Leave empty for automatic motion.</p>
-                          </div>
-                        )}
-
                         {/* Resolution */}
                         {!aiVideoOutputUrls.length && (
                           <div>
@@ -2763,25 +2725,43 @@ export default function DashboardPage() {
                               <p className="text-xs text-violet-300 font-medium">First image used with 3 motion segments</p>
                             </div>
                           ) : (
-                            <div className="flex gap-3 overflow-x-auto pb-2">
-                              {results.map((url, i) => (
-                                <button key={i} onClick={() => setSelectedVideoImage(url)}
-                                  className={`relative flex-shrink-0 w-20 h-28 rounded-xl overflow-hidden border-2 transition-all ${
-                                    selectedVideoImage === url ? "border-violet-500 scale-[1.02]" : "border-white/10 hover:border-violet-500/40"
-                                  }`}>
-                                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                                  <img src={url} alt={`Image ${i + 1}`} className="w-full h-full object-cover" />
-                                  {selectedVideoImage === url && (
-                                    <div className="absolute inset-0 bg-violet-500/20 flex items-center justify-center">
-                                      <div className="w-5 h-5 rounded-full bg-violet-500 flex items-center justify-center">
-                                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                                          <path d="M2 5l2.5 2.5L8 3" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                        </svg>
-                                      </div>
-                                    </div>
-                                  )}
-                                </button>
-                              ))}
+                            <div>
+                              <div className="flex gap-3 overflow-x-auto pb-2">
+                                {results.map((url, i) => {
+                                  const idx = canvasSelectedImages.indexOf(url)
+                                  const isSelected = idx !== -1
+                                  return (
+                                    <button
+                                      key={i}
+                                      onClick={() => {
+                                        if (isSelected) {
+                                          setCanvasSelectedImages(prev => prev.filter(u => u !== url))
+                                        } else {
+                                          setCanvasSelectedImages(prev => [...prev, url])
+                                        }
+                                      }}
+                                      className={`relative flex-shrink-0 w-20 h-28 rounded-xl overflow-hidden border-2 transition-all ${
+                                        isSelected ? "border-violet-500 scale-[1.02]" : "border-white/10 hover:border-violet-500/40"
+                                      }`}
+                                    >
+                                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                                      <img src={url} alt={`Image ${i + 1}`} className="w-full h-full object-cover" />
+                                      {isSelected && (
+                                        <div className="absolute inset-0 bg-violet-500/20 flex items-center justify-center">
+                                          <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-violet-500 flex items-center justify-center text-[9px] font-bold text-white">
+                                            {idx + 1}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                              <p className="text-xs text-white/30 mt-2">
+                                {canvasSelectedImages.length === 0
+                                  ? "Select one or more images — they will play in sequence"
+                                  : `${canvasSelectedImages.length} image${canvasSelectedImages.length > 1 ? "s" : ""} selected — tap to reorder by deselecting and reselecting`}
+                              </p>
                             </div>
                           )}
                         </div>
@@ -2922,10 +2902,10 @@ export default function DashboardPage() {
                         {!reelOutputUrl && (
                           <div>
                             <button
-                              disabled={reelRendering || (reelTemplate !== "fade-slideshow" && reelTemplate !== "multi-motion" && !selectedVideoImage)}
+                              disabled={reelRendering || (reelTemplate !== "fade-slideshow" && reelTemplate !== "multi-motion" && canvasSelectedImages.length === 0)}
                               onClick={renderReel}
                               className={`w-full py-3.5 rounded-xl text-sm font-medium transition-colors ${
-                                !reelRendering && (reelTemplate === "fade-slideshow" || reelTemplate === "multi-motion" || selectedVideoImage)
+                                !reelRendering && (reelTemplate === "fade-slideshow" || reelTemplate === "multi-motion" || canvasSelectedImages.length > 0)
                                   ? "bg-violet-600 hover:bg-violet-500 text-white"
                                   : "bg-white/[0.04] text-white/20 cursor-not-allowed"
                               }`}
@@ -4675,17 +4655,6 @@ export default function DashboardPage() {
                     Reel 1: Image 1 → Image 2 (start + end frame)<br/>
                     Reel 2: Image 3 (separate reel)
                   </p>
-                </div>
-              )}
-              {aiVideoMotionPrompt && (
-                <div className="pt-2 border-t border-white/[0.07]">
-                  <p className="text-xs text-white/40 mb-1">Motion prompt:</p>
-                  <p className="text-sm text-white/80 italic leading-relaxed">&ldquo;{aiVideoMotionPrompt}&rdquo;</p>
-                </div>
-              )}
-              {!aiVideoMotionPrompt && (
-                <div className="pt-2 border-t border-white/[0.07]">
-                  <p className="text-xs text-white/30 italic">No motion prompt — AI will decide automatically</p>
                 </div>
               )}
             </div>
