@@ -4,36 +4,17 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "motion/react";
 import { Play } from "lucide-react";
 
-function getExampleImageUrl(url: string): string {
-  if (!url) return ""
-  if (url.startsWith("http://") || url.startsWith("https://")) return url
-  return `https://dripshoots.com${url}`
-}
-
 export default function Home() {
   const [scrolled, setScrolled] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [modelTab, setModelTab] = useState("female");
   const [formSent, setFormSent] = useState(false);
   const [formData, setFormData] = useState({ name: "", email: "", message: "" });
-  const [examples, setExamples] = useState<{uploadUrl: string, generatedUrl: string, occasion: string, gender: string, ethnicity: string}[]>([])
-  const [examplesLoading, setExamplesLoading] = useState(true)
-
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", handler);
     return () => window.removeEventListener("scroll", handler);
   }, []);
-
-  useEffect(() => {
-    fetch("/api/examples")
-      .then(r => r.json())
-      .then(d => {
-        setExamples(d.examples || [])
-        setExamplesLoading(false)
-      })
-      .catch(() => setExamplesLoading(false))
-  }, [])
 
   const heroWords1 = ["Turn", "flat-lay", "photos"];
   const heroWords2 = ["into"];
@@ -343,102 +324,6 @@ export default function Home() {
                 <p className="text-sm leading-relaxed" style={{ color: "rgba(248,248,248,0.5)" }}>{card.body}</p>
               </motion.div>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── EXAMPLES ── */}
-      <section id="examples" className="py-24 md:py-24 py-16" style={{ backgroundColor: "#0a0a0a" }}>
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="text-center mb-12">
-            <p className="text-xs uppercase tracking-widest text-violet-400 mb-3">Results</p>
-            <motion.h2
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5 }}
-              className="text-3xl md:text-4xl font-black"
-            >
-              Real garments. Real models.
-            </motion.h2>
-            <p className="mt-4 text-sm" style={{ color: "rgba(248,248,248,0.5)" }}>Every image generated from a flat-lay photo — no studio, no photographer needed.</p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {examplesLoading ? (
-              Array.from({length: 6}).map((_, i) => (
-                <div key={i} className="aspect-[3/4] rounded-2xl bg-white/[0.03] animate-pulse border border-white/[0.05]"/>
-              ))
-            ) : (
-              [0,1,2,3,4,5].map((i) => {
-                const ex = examples[i]
-                return (
-                  <motion.div
-                    key={i}
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: i * 0.1, duration: 0.5 }}
-                    className="rounded-2xl overflow-hidden relative group"
-                    style={{ border: "1px solid rgba(255,255,255,0.07)", backgroundColor: "#0f0f0f", aspectRatio: "3/4" }}
-                  >
-                    {ex ? (
-                      <>
-                        <div className="absolute inset-x-0 top-0 h-1/2 overflow-hidden">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={getExampleImageUrl(ex.uploadUrl)} alt="Original" className="w-full h-full object-cover" />
-                          <span className="absolute top-3 left-3 text-xs px-2 py-0.5 rounded-full font-medium" style={{ backgroundColor: "rgba(0,0,0,0.5)", color: "rgba(248,248,248,0.6)" }}>Original</span>
-                        </div>
-                        <div className="absolute inset-x-0 bottom-0 h-1/2 overflow-hidden">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={getExampleImageUrl(ex.generatedUrl)} alt="Generated" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
-                          <span className="absolute top-3 left-3 text-xs px-2 py-0.5 rounded-full font-medium" style={{ backgroundColor: "rgba(124,58,237,0.3)", color: "#c4b5fd" }}>Generated</span>
-                        </div>
-                        <div className="absolute inset-x-0" style={{ top: "50%", transform: "translateY(-50%)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10 }}>
-                          <div className="flex items-center gap-2">
-                            <div className="h-px w-8" style={{ backgroundColor: "rgba(255,255,255,0.2)" }} />
-                            <span className="text-xs px-2 py-0.5 rounded-full font-bold" style={{ backgroundColor: "#080808", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(248,248,248,0.6)" }}>→</span>
-                            <div className="h-px w-8" style={{ backgroundColor: "rgba(255,255,255,0.2)" }} />
-                          </div>
-                        </div>
-                        <div className="absolute bottom-3 right-3 text-xs px-2 py-0.5 rounded-full font-medium" style={{ backgroundColor: "rgba(124,58,237,0.3)", color: "#c4b5fd", border: "1px solid rgba(124,58,237,0.3)" }}>
-                          {ex.occasion} · {ex.ethnicity}
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="absolute inset-x-0 top-0 h-1/2" style={{ background: "linear-gradient(135deg, #27272a, #3f3f46)" }}>
-                          <span className="absolute top-3 left-3 text-xs px-2 py-0.5 rounded-full font-medium" style={{ backgroundColor: "rgba(0,0,0,0.5)", color: "rgba(248,248,248,0.6)" }}>Original</span>
-                        </div>
-                        <div className="absolute inset-x-0 bottom-0 h-1/2" style={{ background: "linear-gradient(135deg, rgba(124,58,237,0.4), rgba(217,70,239,0.4))" }}>
-                          <span className="absolute top-3 left-3 text-xs px-2 py-0.5 rounded-full font-medium" style={{ backgroundColor: "rgba(124,58,237,0.3)", color: "#c4b5fd" }}>Generated</span>
-                        </div>
-                        <div className="absolute inset-x-0" style={{ top: "50%", transform: "translateY(-50%)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10 }}>
-                          <div className="flex items-center gap-2">
-                            <div className="h-px w-8" style={{ backgroundColor: "rgba(255,255,255,0.2)" }} />
-                            <span className="text-xs px-2 py-0.5 rounded-full font-bold" style={{ backgroundColor: "#080808", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(248,248,248,0.6)" }}>→</span>
-                            <div className="h-px w-8" style={{ backgroundColor: "rgba(255,255,255,0.2)" }} />
-                          </div>
-                        </div>
-                        <div className="absolute bottom-3 right-3 text-xs px-2 py-0.5 rounded-full font-medium" style={{ backgroundColor: "rgba(124,58,237,0.3)", color: "#c4b5fd", border: "1px solid rgba(124,58,237,0.3)" }}>
-                          &lt; 2 min
-                        </div>
-                      </>
-                    )}
-                  </motion.div>
-                )
-              })
-            )}
-          </div>
-
-          <div className="text-center mt-10">
-            <motion.a
-              href="/sign-up"
-              whileHover={{ boxShadow: "0 0 30px rgba(124,58,237,0.4)" }}
-              className="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-500 px-8 py-4 rounded-xl font-semibold transition-colors"
-            >
-              Start generating your own →
-            </motion.a>
           </div>
         </div>
       </section>
@@ -1013,7 +898,6 @@ export default function Home() {
                 {[
                   { label: "How it works", id: "how-it-works" },
                   { label: "Pricing", id: "pricing" },
-                  { label: "Examples", id: "examples" },
                   { label: "Contact", id: "contact" },
                 ].map((link) => (
                   <button key={link.label} onClick={() => document.getElementById(link.id)?.scrollIntoView({ behavior: "smooth" })} className="block text-sm transition-colors hover:text-white text-left" style={{ color: "rgba(248,248,248,0.4)" }}>
