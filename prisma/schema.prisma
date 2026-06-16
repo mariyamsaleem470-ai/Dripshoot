@@ -42,10 +42,11 @@ model Project {
   userId    String
   name      String
   status    String           @default("pending")
-  gender    String
-  ethnicity String
-  occasion  String
+  gender    String?
+  ethnicity String?
+  occasion  String?
   prompt    String?
+  category  String           @default("fashion")
   createdAt DateTime         @default(now())
   user      User             @relation(fields: [userId], references: [id])
   uploads   Upload[]

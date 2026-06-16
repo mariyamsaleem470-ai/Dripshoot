@@ -11,19 +11,14 @@ cloudinary.config({
 });
 
 async function toPublicUrl(imageUrl: string): Promise<string> {
-  // Already a public URL
   if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
     return imageUrl;
   }
-
-  // Local path — upload to Cloudinary
   const localPath = imageUrl.startsWith("/") ? imageUrl : `/${imageUrl}`;
   const fullUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "https://dripshoots.com"}${localPath}`;
-
   const uploaded = await cloudinary.uploader.upload(fullUrl, {
     folder: "dripshoots/product-inputs",
   });
-
   return uploaded.secure_url;
 }
 
@@ -37,7 +32,6 @@ export async function POST(req: Request) {
     return Response.json({ error: "Image and prompt required" }, { status: 400 });
   }
 
-  // Check credits
   const user = await prisma.user.findUnique({ where: { clerkId: userId } });
   if (!user) return Response.json({ error: "User not found" }, { status: 404 });
   if ((user.credits ?? 0) < (numImages ?? 1)) {
@@ -48,9 +42,7 @@ export async function POST(req: Request) {
   if (!token) return Response.json({ error: "Replicate not configured" }, { status: 500 });
 
   try {
-    // Convert local path to public Cloudinary URL
     const publicImageUrl = await toPublicUrl(imageUrl);
-
     const results: string[] = [];
 
     for (let i = 0; i < (numImages ?? 1); i++) {
@@ -81,31 +73,67 @@ export async function POST(req: Request) {
       );
 
       const data = await res.json();
-
-      if (data.error) {
-        console.error("Replicate error:", data.error);
-        continue;
-      }
+      if (data.error) { console.error("Replicate error:", data.error); continue; }
 
       const output = data.output;
-      if (Array.isArray(output) && output.length > 0) {
-        results.push(output[0]);
-      } else if (typeof output === "string") {
-        results.push(output);
-      }
+      if (Array.isArray(output) && output.length > 0) results.push(output[0]);
+      else if (typeof output === "string") results.push(output);
     }
 
     if (results.length === 0) {
       return Response.json({ error: "Generation failed. Try again." }, { status: 500 });
     }
 
+    // Upload results to Cloudinary with brand watermark
+    const cloudinaryResults: string[] = [];
+    for (const url of results) {
+      try {
+        const uploaded = await cloudinary.uploader.upload(url, {
+          folder: "dripshoots/product-outputs",
+          transformation: user.brandingLogoPublicId ? [
+            {
+              overlay: user.brandingLogoPublicId.replace(/\//g, ":"),
+              gravity: user.brandingPosition ?? "south_east",
+              opacity: user.brandingOpacity ?? 70,
+              width: user.brandingSize ?? 150,
+              crop: "scale",
+            },
+          ] : undefined,
+        });
+        cloudinaryResults.push(uploaded.secure_url);
+      } catch {
+        cloudinaryResults.push(url);
+      }
+    }
+
+    // Save to DB as Project
+    const categoryLabel = category === "crockery" ? "Crockery" : category === "jewellery" ? "Jewellery" : "Product";
+    const project = await prisma.project.create({
+      data: {
+        userId: user.id,
+        name: `${categoryLabel} Shoot`,
+        status: "completed",
+        prompt: prompt,
+        category: category ?? "product",
+        uploads: {
+          create: [{ imageUrl: publicImageUrl }],
+        },
+        images: {
+          create: cloudinaryResults.map((url) => ({ imageUrl: url })),
+        },
+      },
+    });
+
     // Deduct credits
     await prisma.user.update({
       where: { clerkId: userId },
-      data: { credits: { decrement: results.length } },
+      data: {
+        credits: { decrement: cloudinaryResults.length },
+        creditsUsed: { increment: cloudinaryResults.length },
+      },
     });
 
-    return Response.json({ results });
+    return Response.json({ results: cloudinaryResults, projectId: project.id });
 
   } catch (err) {
     console.error("Product generation error:", err);
