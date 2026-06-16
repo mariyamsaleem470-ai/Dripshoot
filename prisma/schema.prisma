@@ -34,6 +34,7 @@ model User {
   brandingOpacity      Int?      @default(70)
   shopifySiteUrl       String?
   shopifyAccessToken   String?
+  makeWebhookUrl       String?
 }
 
 model Project {

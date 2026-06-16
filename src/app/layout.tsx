@@ -30,13 +30,23 @@ export default function RootLayout({
       signUpForceRedirectUrl="/dashboard"
       appearance={{
         variables: {
-          colorPrimary: '#7c3aed',
-          colorBackground: '#13131a',
-          colorInputBackground: '#1a1a2e',
-          colorInputText: '#ffffff',
-          colorText: '#ffffff',
-          colorTextSecondary: '#9ca3af',
-          borderRadius: '0.75rem',
+          colorPrimary: "#7c3aed",
+          colorBackground: "#0f0f1a",
+          colorInputBackground: "#1a1a2e",
+          colorInputText: "#ffffff",
+          colorText: "#ffffff",
+          colorTextSecondary: "#a1a1aa",
+          colorShimmer: "#1a1a2e",
+          borderRadius: "12px",
+        },
+        elements: {
+          otpCodeFieldInput: "!bg-white/10 !border !border-white/20 !text-white !rounded-xl !text-center !text-2xl !font-bold",
+          formFieldInput: "!bg-white/10 !border !border-white/20 !text-white placeholder:!text-zinc-500 !rounded-xl",
+          formButtonPrimary: "!bg-violet-600 hover:!bg-violet-700 !text-white !font-semibold !rounded-xl",
+          footerActionLink: "!text-violet-400 hover:!text-violet-300 !font-medium",
+          card: "!bg-[#13131a] !border !border-white/10",
+          formResendCodeLink: "!text-violet-400 hover:!text-violet-300",
+          backLink: "!text-violet-400 hover:!text-violet-300",
         },
       }}
     >

@@ -19,6 +19,7 @@ type ReelTemplate = "ken-burns" | "zoom-out" | "pan-left" | "pan-right" | "fade-
 type MusicTrack = "track-1" | "track-2" | "custom";
 type SharePlatform = "Instagram" | "Facebook" | "TikTok" | "Twitter";
 type ClothingType = "stitched" | "unstitched";
+type DripCategory = "garments" | "crockery" | "jewellery"
 type ToastType = "success" | "error" | "warning" | "info"
 type Toast = { id: string; message: string; type: ToastType }
 
@@ -215,7 +216,7 @@ const UNSTITCHED_STYLES_FEMALE = [
 ];
 
 const STEP_TITLES: Record<number, string> = {
-  1:  "Upload your garment",
+  1:  "Upload your product",
   2:  "Stitched or Unstitched?",
   3:  "Select Style",
   4:  "Age group",
@@ -225,7 +226,34 @@ const STEP_TITLES: Record<number, string> = {
   8:  "Sides",
   9:  "Images per side",
   11: "Final Details",
+  // Product photography steps (crockery/jewellery)
+  20: "Choose a Scene",
+  21: "Customize Prompt",
 };
+
+const CROCKERY_SCENES: { id: string; label: string; emoji: string; prompt: string }[] = [
+  { id: "marble-luxury",   label: "Marble Luxury",       emoji: "🤍", prompt: "on an elegant white marble surface with soft natural lighting, luxury lifestyle photography, shallow depth of field, photorealistic" },
+  { id: "dining-table",    label: "Dining Table",         emoji: "🍽️", prompt: "on a beautifully set dining table with warm candlelight, fine dining restaurant atmosphere, bokeh background, photorealistic" },
+  { id: "dark-moody",      label: "Dark & Moody",         emoji: "🖤", prompt: "on a dark slate surface with dramatic side lighting, moody atmosphere, luxury editorial photography, photorealistic" },
+  { id: "outdoor-garden",  label: "Outdoor Garden",       emoji: "🌿", prompt: "on a rustic wooden table in a lush garden setting, soft natural daylight, fresh and organic feel, photorealistic" },
+  { id: "minimal-white",   label: "Minimal Studio",       emoji: "⬜", prompt: "on a clean white surface in a bright minimalist studio, professional product photography, soft box lighting, photorealistic" },
+  { id: "kitchen-counter", label: "Kitchen Counter",      emoji: "🏠", prompt: "on a modern kitchen counter with natural window light, lifestyle home photography, warm and inviting, photorealistic" },
+  { id: "festive",         label: "Festive",              emoji: "✨", prompt: "with festive decorations and warm golden lighting, celebration atmosphere, bokeh fairy lights in background, photorealistic" },
+  { id: "aerial",          label: "Aerial Flat Lay",      emoji: "📸", prompt: "aerial flat lay on a textured linen surface with natural props, top-down view, lifestyle photography, photorealistic" },
+];
+
+const JEWELLERY_SCENES: { id: string; label: string; emoji: string; prompt: string; gender: "ladies" | "gents" | "both" }[] = [
+  // Ladies
+  { id: "ladies-velvet",    label: "Velvet Display",      emoji: "💜", prompt: "on a luxurious dark purple velvet jewellery display, soft spotlight lighting, high-end retail photography, photorealistic", gender: "ladies" },
+  { id: "ladies-hand",      label: "Ladies Hand",         emoji: "💍", prompt: "worn on an elegant female hand with soft skin, natural lighting, close-up macro photography, photorealistic", gender: "ladies" },
+  { id: "ladies-neck",      label: "Ladies Neck",         emoji: "📿", prompt: "worn around a graceful female neck, soft studio lighting, fashion editorial photography, photorealistic", gender: "ladies" },
+  { id: "ladies-marble",    label: "Marble & Roses",      emoji: "🌹", prompt: "on white marble surface with pink rose petals, soft feminine lighting, luxury jewellery photography, photorealistic", gender: "ladies" },
+  // Gents
+  { id: "gents-hand",       label: "Gents Hand",          emoji: "🤵", prompt: "worn on a strong male hand, dark background with dramatic lighting, luxury masculine photography, photorealistic", gender: "gents" },
+  { id: "gents-neck",       label: "Gents Neck",          emoji: "⛓️", prompt: "worn around a male neck, dark moody studio lighting, high-end fashion photography, photorealistic", gender: "gents" },
+  { id: "gents-wood",       label: "Dark Wood Display",   emoji: "🪵", prompt: "on a dark polished wood surface with spot lighting, masculine luxury retail photography, photorealistic", gender: "gents" },
+  { id: "gents-watch-flat", label: "Flat Lay Dark",       emoji: "🖤", prompt: "flat lay on dark slate surface with dramatic lighting, luxury mens accessories photography, photorealistic", gender: "gents" },
+];
 
 const NAV_ITEMS: { id: NavItem; label: string; icon: React.ReactNode }[] = [
   { id: "upload", label: "Upload", icon: <UploadIcon /> },
@@ -497,8 +525,15 @@ export default function DashboardPage() {
   const [shareCaption, setShareCaption] = useState("");
   const [shareCaptionLoading, setShareCaptionLoading] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
+  const [socialPosting, setSocialPosting] = useState(false)
+  const [socialPosted, setSocialPosted] = useState(false)
   const [projectExportTab, setProjectExportTab] = useState<Exclude<ExportTab, "reels">>("instagram");
   const [wizardStep, setWizardStep] = useState(1);
+  const [dripCategory, setDripCategory] = useState<DripCategory | null>(null);
+  const [productScene, setProductScene] = useState<string | null>(null)
+  const [productPrompt, setProductPrompt] = useState("")
+  const [productGenerating, setProductGenerating] = useState(false)
+  const [productResults, setProductResults] = useState<string[]>([])
   const [clothingType, setClothingType] = useState<ClothingType | null>(null);
   const [clothingStyle, setClothingStyle] = useState<string | null>(null);
   const [category, setCategory] = useState<ProductCategory | null>(null);
@@ -538,7 +573,11 @@ export default function DashboardPage() {
 
   // ── WooCommerce / Integrations state ──────────────────────────────────────
   const [activeIntegration, setActiveIntegration] = useState<string | null>(null);
-  const [settingsTab, setSettingsTab] = useState<"integrations" | "branding" | "shopify" | "woocommerce">("integrations")
+  const [settingsTab, setSettingsTab] = useState<"integrations" | "branding" | "shopify" | "woocommerce" | "make">("integrations")
+  const [makeWebhookUrl, setMakeWebhookUrl] = useState("")
+  const [makeSaving, setMakeSaving] = useState(false)
+  const [makeSaved, setMakeSaved] = useState(false)
+  const [makeLoaded, setMakeLoaded] = useState(false)
   const [shopifyConnected, setShopifyConnected] = useState(false)
   const [shopifyForm, setShopifyForm] = useState({ siteUrl: "", accessToken: "" })
   const [shopifyConnecting, setShopifyConnecting] = useState(false)
@@ -671,6 +710,14 @@ export default function DashboardPage() {
       })
       .catch(() => {})
   }, [activeNav]);
+
+  useEffect(() => {
+    if (activeNav !== "settings" || makeLoaded) return
+    fetch("/api/settings/make")
+      .then(r => r.json())
+      .then(d => { setMakeWebhookUrl(d.makeWebhookUrl ?? ""); setMakeLoaded(true); })
+      .catch(() => setMakeLoaded(true))
+  }, [activeNav, makeLoaded])
 
   // Check WC connection when WooCommerce share tab is first opened
   useEffect(() => {
@@ -1030,6 +1077,34 @@ export default function DashboardPage() {
     }
   };
 
+  const handlePostToSocial = async () => {
+    if (!shareSelectedImages.length) return
+    setSocialPosting(true)
+    setSocialPosted(false)
+    try {
+      const res = await fetch("/api/social/post", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          imageUrls: shareSelectedImages,
+          caption: shareCaption,
+          platform: sharePlatform,
+        }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setSocialPosted(true)
+        showToast("Posted successfully via Make.com!", "success")
+      } else {
+        showToast(data.error ?? "Failed to post.", "error")
+      }
+    } catch {
+      showToast("Request failed. Try again.", "error")
+    } finally {
+      setSocialPosting(false)
+    }
+  }
+
   const handleWcGenerateContent = async () => {
     if (!shareProject) return;
     setWcGeneratingContent(true);
@@ -1212,6 +1287,11 @@ export default function DashboardPage() {
     setProgressPct(0);
     setProgressMsg(0);
     setWizardStep(1);
+    setDripCategory(null);
+    setProductScene(null);
+    setProductPrompt("");
+    setProductGenerating(false);
+    setProductResults([]);
     setClothingType(null);
     setClothingStyle(null);
     setCategory(null);
@@ -1645,12 +1725,20 @@ export default function DashboardPage() {
     showToast("Images downloaded successfully!", "success");
   };
 
-  const stepSequence = [1, 2, 4, 5, 3, 6, 7, 8, 9, 11];
+  const stepSequence = (dripCategory === "crockery" || dripCategory === "jewellery")
+    ? [1, 20, 21]
+    : [1, 2, 4, 5, 3, 6, 7, 8, 9, 11];
 
   const totalSteps = stepSequence.length;
   const displayStep = Math.max(1, stepSequence.indexOf(wizardStep) + 1);
 
   const handleNext = () => {
+    // Product photography flow (crockery/jewellery)
+    if (dripCategory === "crockery" || dripCategory === "jewellery") {
+      if (wizardStep === 1) { setWizardStep(20); return; }
+      if (wizardStep === 20) { setWizardStep(21); return; }
+      return;
+    }
     if (wizardStep === 1)      setWizardStep(2);
     else if (wizardStep === 2) setWizardStep(4);
     else if (wizardStep === 4) setWizardStep(5);
@@ -1663,6 +1751,12 @@ export default function DashboardPage() {
   };
 
   const handleBack = () => {
+    // Product photography flow
+    if (dripCategory === "crockery" || dripCategory === "jewellery") {
+      if (wizardStep === 20) { setWizardStep(1); return; }
+      if (wizardStep === 21) { setWizardStep(20); return; }
+      return;
+    }
     if (wizardStep === 2)       setWizardStep(1);
     else if (wizardStep === 4)  setWizardStep(2);
     else if (wizardStep === 5)  setWizardStep(4);
@@ -1683,6 +1777,8 @@ export default function DashboardPage() {
       case 3: return !!clothingStyle;
       case 6: return !!background;
       case 7: return !!occasion;
+      case 20: return !!productScene;
+      case 21: return true; // prompt is optional
       default: return true;
     }
   })();
@@ -1800,26 +1896,133 @@ export default function DashboardPage() {
               )}
 
               {/* Step progress bar */}
-              <div className="mb-6 sm:mb-8">
-                <div className="flex gap-1 mb-3 sm:mb-4">
-                  {Array.from({ length: totalSteps }, (_, i) => (
-                    <div
-                      key={i}
-                      className={`h-0.5 flex-1 rounded-full transition-all duration-300 ${
-                        i + 1 <= displayStep ? "bg-violet-500" : "bg-white/[0.08]"
-                      }`}
-                    />
-                  ))}
+              {(dripCategory || wizardStep > 1) && (
+                <div className="mb-6 sm:mb-8">
+                  <div className="flex gap-1 mb-3 sm:mb-4">
+                    {Array.from({ length: totalSteps }, (_, i) => (
+                      <div
+                        key={i}
+                        className={`h-0.5 flex-1 rounded-full transition-all duration-300 ${
+                          i + 1 <= displayStep ? "bg-violet-500" : "bg-white/[0.08]"
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-1">
+                    Step {displayStep} of {totalSteps}
+                  </p>
+                  <h1 className="text-xl sm:text-2xl font-bold">
+                    {wizardStep === 1
+                      ? (dripCategory === "crockery" ? "Upload your product" : dripCategory === "jewellery" ? "Upload your jewellery" : "Upload your garment")
+                      : STEP_TITLES[wizardStep]}
+                  </h1>
                 </div>
-                <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-1">
-                  Step {displayStep} of {totalSteps}
-                </p>
-                <h1 className="text-xl sm:text-2xl font-bold">{STEP_TITLES[wizardStep]}</h1>
-              </div>
+              )}
+
+              {/* ── Category Selection ── */}
+              {wizardStep === 1 && !dripCategory && (
+                <div>
+                  <div className="mb-8">
+                    <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-1">Get Started</p>
+                    <h1 className="text-xl sm:text-2xl font-bold">What are you shooting today?</h1>
+                    <p className="text-white/40 text-sm mt-2">Choose a category to get started</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4">
+
+                    {/* Garments */}
+                    <button
+                      onClick={() => setDripCategory("garments")}
+                      className="group relative w-full p-5 rounded-2xl border border-white/[0.08] bg-white/[0.02] hover:border-violet-500/50 hover:bg-violet-500/5 transition-all duration-200 text-left"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-14 h-14 rounded-2xl bg-violet-600/15 border border-violet-500/25 flex items-center justify-center text-2xl flex-shrink-0 group-hover:bg-violet-600/25 transition-colors">
+                          👗
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-white font-semibold text-base mb-0.5">Garments</p>
+                          <p className="text-white/40 text-sm">Shalwar kameez, kurtas, dresses, western wear — place your clothing on AI models</p>
+                        </div>
+                        <div className="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center group-hover:border-violet-500/40 transition-colors flex-shrink-0">
+                          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5 3l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-white/30 group-hover:text-violet-400"/></svg>
+                        </div>
+                      </div>
+                      <div className="mt-3 ml-18 flex gap-2 flex-wrap">
+                        {["Stitched", "Unstitched", "Western", "Eastern"].map(tag => (
+                          <span key={tag} className="px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-400/70 text-[10px] font-medium">{tag}</span>
+                        ))}
+                      </div>
+                    </button>
+
+                    {/* Crockery */}
+                    <button
+                      onClick={() => setDripCategory("crockery")}
+                      className="group relative w-full p-5 rounded-2xl border border-white/[0.08] bg-white/[0.02] hover:border-amber-500/50 hover:bg-amber-500/5 transition-all duration-200 text-left"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-14 h-14 rounded-2xl bg-amber-600/15 border border-amber-500/25 flex items-center justify-center text-2xl flex-shrink-0 group-hover:bg-amber-600/25 transition-colors">
+                          🍽️
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-white font-semibold text-base mb-0.5">Crockery & Dining</p>
+                          <p className="text-white/40 text-sm">Plates, cups, dinner sets — place your products in luxury dining scenes</p>
+                        </div>
+                        <div className="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center group-hover:border-amber-500/40 transition-colors flex-shrink-0">
+                          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5 3l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-white/30 group-hover:text-amber-400"/></svg>
+                        </div>
+                      </div>
+                      <div className="mt-3 flex gap-2 flex-wrap ml-18">
+                        {["Marble Table", "Luxury Restaurant", "Kitchen", "Outdoor"].map(tag => (
+                          <span key={tag} className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400/70 text-[10px] font-medium">{tag}</span>
+                        ))}
+                      </div>
+                    </button>
+
+                    {/* Jewellery */}
+                    <button
+                      onClick={() => setDripCategory("jewellery")}
+                      className="group relative w-full p-5 rounded-2xl border border-white/[0.08] bg-white/[0.02] hover:border-yellow-500/50 hover:bg-yellow-500/5 transition-all duration-200 text-left"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-14 h-14 rounded-2xl bg-yellow-600/15 border border-yellow-500/25 flex items-center justify-center text-2xl flex-shrink-0 group-hover:bg-yellow-600/25 transition-colors">
+                          💍
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-white font-semibold text-base mb-0.5">Jewellery & Accessories</p>
+                          <p className="text-white/40 text-sm">Rings, chains, bracelets, earrings — showcase in elegant luxury settings</p>
+                        </div>
+                        <div className="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center group-hover:border-yellow-500/40 transition-colors flex-shrink-0">
+                          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5 3l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-white/30 group-hover:text-yellow-400"/></svg>
+                        </div>
+                      </div>
+                      <div className="mt-3 flex gap-2 flex-wrap ml-18">
+                        {["Rings", "Chains", "Bracelets", "Earrings"].map(tag => (
+                          <span key={tag} className="px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400/70 text-[10px] font-medium">{tag}</span>
+                        ))}
+                      </div>
+                    </button>
+
+                  </div>
+                </div>
+              )}
 
               {/* ── Step 1: Upload ── */}
-              {wizardStep === 1 && (
+              {wizardStep === 1 && dripCategory && (
                 <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">
+                        {dripCategory === "garments" ? "👗" : dripCategory === "crockery" ? "🍽️" : "💍"}
+                      </span>
+                      <span className="text-sm font-medium text-white/60 capitalize">{dripCategory}</span>
+                    </div>
+                    <button
+                      onClick={() => { setDripCategory(null); }}
+                      className="text-xs text-white/30 hover:text-violet-400 transition-colors"
+                    >
+                      Change category
+                    </button>
+                  </div>
                   <div
                     className={`w-full rounded-2xl border-2 border-dashed transition-all cursor-pointer ${
                       dragging
@@ -2158,6 +2361,208 @@ export default function DashboardPage() {
                 </div>
               )}
 
+              {/* ── Product Step 20: Scene Selection ── */}
+              {wizardStep === 20 && (
+                <div className="space-y-4">
+                  {dripCategory === "jewellery" ? (
+                    <>
+                      {/* Ladies section */}
+                      <div>
+                        <p className="text-xs text-white/40 uppercase tracking-widest font-medium mb-3">👩 Ladies Jewellery</p>
+                        <div className="grid grid-cols-2 gap-3">
+                          {JEWELLERY_SCENES.filter(s => s.gender === "ladies").map((scene) => (
+                            <button
+                              key={scene.id}
+                              onClick={() => { setProductScene(scene.id); setProductPrompt(scene.prompt); }}
+                              className={`flex flex-col items-start gap-2 p-4 rounded-2xl border transition-all text-left ${
+                                productScene === scene.id
+                                  ? "border-pink-500 bg-pink-500/10"
+                                  : "border-white/[0.07] bg-white/[0.03] hover:border-pink-500/40 hover:bg-white/[0.05]"
+                              }`}
+                            >
+                              <span className="text-2xl">{scene.emoji}</span>
+                              <span className={`text-xs font-semibold leading-tight ${
+                                productScene === scene.id ? "text-pink-300" : "text-white/70"
+                              }`}>{scene.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      {/* Gents section */}
+                      <div>
+                        <p className="text-xs text-white/40 uppercase tracking-widest font-medium mb-3">👨 Gents Accessories</p>
+                        <div className="grid grid-cols-2 gap-3">
+                          {JEWELLERY_SCENES.filter(s => s.gender === "gents").map((scene) => (
+                            <button
+                              key={scene.id}
+                              onClick={() => { setProductScene(scene.id); setProductPrompt(scene.prompt); }}
+                              className={`flex flex-col items-start gap-2 p-4 rounded-2xl border transition-all text-left ${
+                                productScene === scene.id
+                                  ? "border-blue-500 bg-blue-500/10"
+                                  : "border-white/[0.07] bg-white/[0.03] hover:border-blue-500/40 hover:bg-white/[0.05]"
+                              }`}
+                            >
+                              <span className="text-2xl">{scene.emoji}</span>
+                              <span className={`text-xs font-semibold leading-tight ${
+                                productScene === scene.id ? "text-blue-300" : "text-white/70"
+                              }`}>{scene.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-3">
+                      {CROCKERY_SCENES.map((scene) => (
+                        <button
+                          key={scene.id}
+                          onClick={() => { setProductScene(scene.id); setProductPrompt(scene.prompt); }}
+                          className={`flex flex-col items-start gap-2 p-4 rounded-2xl border transition-all text-left ${
+                            productScene === scene.id
+                              ? "border-amber-500 bg-amber-500/10"
+                              : "border-white/[0.07] bg-white/[0.03] hover:border-amber-500/40 hover:bg-white/[0.05]"
+                          }`}
+                        >
+                          <span className="text-2xl">{scene.emoji}</span>
+                          <span className={`text-xs font-semibold leading-tight ${
+                            productScene === scene.id ? "text-amber-300" : "text-white/70"
+                          }`}>{scene.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── Product Step 21: Customize Prompt ── */}
+              {wizardStep === 21 && (
+                <div className="space-y-4">
+                  {/* Selected scene preview */}
+                  {productScene && (
+                    <div className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/20 flex items-center gap-3">
+                      <span className="text-xl">{([...CROCKERY_SCENES, ...JEWELLERY_SCENES].find(s => s.id === productScene))?.emoji}</span>
+                      <div>
+                        <p className="text-amber-300 text-xs font-medium">{([...CROCKERY_SCENES, ...JEWELLERY_SCENES].find(s => s.id === productScene))?.label}</p>
+                        <p className="text-white/30 text-[10px] mt-0.5">Scene selected</p>
+                      </div>
+                      <button
+                        onClick={() => { setProductScene(null); setWizardStep(20); }}
+                        className="ml-auto text-[10px] text-white/30 hover:text-amber-400 transition-colors"
+                      >
+                        Change
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Prompt editor */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-xs text-white/50 uppercase tracking-widest font-medium">AI Prompt</label>
+                      <button
+                        onClick={() => setProductPrompt([...CROCKERY_SCENES, ...JEWELLERY_SCENES].find(s => s.id === productScene)?.prompt ?? "")}
+                        className="text-[10px] text-amber-400 hover:text-amber-300 transition-colors"
+                      >
+                        Reset
+                      </button>
+                    </div>
+                    <textarea
+                      value={productPrompt}
+                      onChange={(e) => setProductPrompt(e.target.value)}
+                      rows={4}
+                      placeholder="Describe the scene, lighting, background..."
+                      className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-3 text-white text-sm resize-none focus:outline-none focus:border-amber-500/50 transition-colors placeholder:text-white/20"
+                    />
+                    <p className="text-xs text-white/30 mt-2">
+                      Customize the scene. Add details like &ldquo;add rose petals&rdquo;, &ldquo;golden hour lighting&rdquo;, &ldquo;birds eye view&rdquo; etc.
+                    </p>
+                  </div>
+
+                  {/* Number of images */}
+                  <div>
+                    <p className="text-xs text-white/50 uppercase tracking-widest font-medium mb-2">Number of Images</p>
+                    <div className="flex gap-2">
+                      {([1, 2, 3, 4] as const).map((n) => (
+                        <button key={n} onClick={() => setNumImages(n)}
+                          className={`w-12 h-12 rounded-xl border text-sm font-bold transition-all ${
+                            numImages === n
+                              ? "border-amber-500 bg-amber-500/10 text-amber-300"
+                              : "border-white/[0.07] bg-white/[0.03] text-white/50 hover:border-amber-500/40"
+                          }`}>
+                          {n}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Generate button */}
+                  <button
+                    onClick={async () => {
+                      if (!uploadedUrl || !productPrompt) return
+                      setProductGenerating(true)
+                      setProductResults([])
+                      try {
+                        const res = await fetch("/api/generate-product", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            imageUrl: uploadedUrl,
+                            prompt: productPrompt,
+                            numImages,
+                            category: dripCategory,
+                          }),
+                        })
+                        const data = await res.json()
+                        if (data.results) {
+                          setProductResults(data.results)
+                          showToast("Images generated!", "success")
+                        } else {
+                          showToast(data.error ?? "Generation failed.", "error")
+                        }
+                      } catch {
+                        showToast("Request failed. Try again.", "error")
+                      } finally {
+                        setProductGenerating(false)
+                      }
+                    }}
+                    disabled={productGenerating || !productPrompt.trim()}
+                    className="w-full py-3.5 rounded-xl font-semibold text-sm transition-all bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 disabled:opacity-40 disabled:cursor-not-allowed text-white shadow-lg shadow-amber-500/20"
+                  >
+                    {productGenerating ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Generating...
+                      </span>
+                    ) : (
+                      `✨ Generate ${numImages} Image${numImages > 1 ? "s" : ""}`
+                    )}
+                  </button>
+
+                  {/* Results */}
+                  {productResults.length > 0 && (
+                    <div className="space-y-3 mt-4">
+                      <p className="text-xs text-white/50 uppercase tracking-widest font-medium">Results</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        {productResults.map((url, i) => (
+                          <div key={i} className="relative aspect-square rounded-xl overflow-hidden border border-white/10">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={url} alt={`Result ${i + 1}`} className="w-full h-full object-cover" />
+                            <a
+                              href={url}
+                              download={`dripshoots-product-${i + 1}.jpg`}
+                              className="absolute bottom-2 right-2 p-1.5 rounded-lg bg-black/60 hover:bg-black/80 transition-colors"
+                            >
+                              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                                <path d="M6 1v7M3 5l3 3 3-3M2 11h8" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                              </svg>
+                            </a>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* ── Navigation buttons ── */}
               <div className="flex gap-3 mt-8">
                 {wizardStep > 1 && (
@@ -2168,7 +2573,7 @@ export default function DashboardPage() {
                     Back
                   </button>
                 )}
-                {wizardStep < 11 ? (
+                {(wizardStep < 11 || wizardStep === 20) && wizardStep !== 21 ? (
                   <button
                     disabled={!isStepValid}
                     onClick={handleNext}
@@ -2180,7 +2585,7 @@ export default function DashboardPage() {
                   >
                     Next
                   </button>
-                ) : (
+                ) : wizardStep === 11 ? (
                   <button
                     disabled={!uploadedUrl || !gender || !ethnicity || !occasion}
                     onClick={() => setShowPromptPreview(true)}
@@ -2189,7 +2594,7 @@ export default function DashboardPage() {
                     <span>Generate</span>
                     <span className="ml-2 text-violet-300 text-xs font-normal">{numImages * sides.length} credits</span>
                   </button>
-                )}
+                ) : null}
               </div>
             </Container>
           )}
@@ -3358,10 +3763,11 @@ export default function DashboardPage() {
                       { id: "woocommerce",  label: "WooCommerce"  },
                       { id: "shopify",      label: "Shopify"      },
                       { id: "branding",     label: "Brand Watermark" },
+                      { id: "make",         label: "Make.com (Social)" },
                     ].map(tab => (
                       <button
                         key={tab.id}
-                        onClick={() => setSettingsTab(tab.id as "integrations" | "branding" | "shopify" | "woocommerce")}
+                        onClick={() => setSettingsTab(tab.id as "integrations" | "branding" | "shopify" | "woocommerce" | "make")}
                         className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-left transition-all whitespace-nowrap md:whitespace-normal flex-shrink-0 md:flex-shrink ${
                           settingsTab === tab.id
                             ? "bg-violet-600/10 text-violet-400 border border-violet-500/20"
@@ -3443,18 +3849,24 @@ export default function DashboardPage() {
                         <span className="text-white/30 text-xs">→</span>
                       </div>
 
-                      {[
-                        { name: "Facebook" },
-                        { name: "Instagram" },
-                        { name: "TikTok" },
-                      ].map(({ name }) => (
-                        <div key={name} className="border border-white/[0.04] rounded-2xl p-5 opacity-50 cursor-not-allowed flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <p className="font-semibold text-sm">{name}</p>
+                      <div className="border border-white/[0.07] rounded-2xl p-5 flex items-center justify-between cursor-pointer hover:border-violet-500/30 transition-all"
+                        onClick={() => setSettingsTab("make")}>
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-white/[0.05] flex items-center justify-center flex-shrink-0">
+                            <span className="text-sm">🔗</span>
                           </div>
-                          <span className="text-xs px-2 py-1 rounded-md bg-white/[0.05] border border-white/[0.07] text-white/40">Coming Soon</span>
+                          <div>
+                            <p className="font-semibold text-sm">Make.com (Social)</p>
+                            <p className="text-xs mt-0.5 flex items-center gap-1">
+                              {makeWebhookUrl
+                                ? <><span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block"/><span className="text-green-400">Configured</span></>
+                                : <><span className="w-1.5 h-1.5 rounded-full bg-white/20 inline-block"/><span className="text-white/40">Not configured</span></>
+                              }
+                            </p>
+                          </div>
                         </div>
-                      ))}
+                        <span className="text-white/30 text-xs">→</span>
+                      </div>
                     </div>
                   )}
 
@@ -3698,6 +4110,57 @@ export default function DashboardPage() {
                     </div>
                   )}
 
+                  {settingsTab === "make" && (
+                    <div className="max-w-md space-y-5">
+                      <div className="flex items-center gap-2 mb-1">
+                        <button onClick={() => setSettingsTab("integrations")} className="text-white/40 hover:text-white text-sm">Back</button>
+                        <span className="text-white/20 text-sm">/</span>
+                        <span className="text-white/60 text-sm">Make.com</span>
+                      </div>
+
+                      <div className="p-4 rounded-xl bg-violet-500/5 border border-violet-500/20">
+                        <p className="text-violet-300 text-xs font-medium mb-1">How it works</p>
+                        <p className="text-white/40 text-xs leading-relaxed">
+                          Paste your Make.com webhook URL below. When you click &quot;Post to Facebook/Instagram&quot; in the Share modal, DripShoots will send the image + caption to Make.com which posts it to your connected social accounts automatically.
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="block text-white/40 text-xs mb-2">Make.com Webhook URL</label>
+                        <input
+                          type="url"
+                          value={makeWebhookUrl}
+                          onChange={e => { setMakeWebhookUrl(e.target.value); setMakeSaved(false); }}
+                          placeholder="https://hook.eu1.make.com/xxxxxxxxxxxxxxxxxx"
+                          className="w-full px-4 py-3 bg-white/[0.03] border border-white/[0.07] rounded-xl text-white text-sm placeholder-white/20 focus:outline-none focus:border-violet-500/50 transition-colors"
+                        />
+                        <p className="text-[10px] text-white/20 mt-1.5">
+                          Make.com → Create Scenario → Webhooks → Custom webhook → Copy URL
+                        </p>
+                      </div>
+
+                      <button
+                        onClick={async () => {
+                          setMakeSaving(true)
+                          try {
+                            await fetch("/api/settings/make", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ makeWebhookUrl }),
+                            })
+                            setMakeSaved(true)
+                          } finally {
+                            setMakeSaving(false)
+                          }
+                        }}
+                        disabled={makeSaving || !makeWebhookUrl.trim()}
+                        className="w-full py-3 rounded-xl text-sm font-medium bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition-colors"
+                      >
+                        {makeSaving ? "Saving…" : makeSaved ? "✓ Saved" : "Save Webhook URL"}
+                      </button>
+                    </div>
+                  )}
+
                 </div>
               </div>
 
@@ -3711,7 +4174,7 @@ export default function DashboardPage() {
       {shareProject && (
         <div
           className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"
-          onClick={(e) => { if (e.target === e.currentTarget) setShareProject(null); }}
+          onClick={(e) => { if (e.target === e.currentTarget) { setShareProject(null); setSocialPosted(false); setSocialPosting(false); } }}
         >
           <div className="bg-[#111] border border-white/[0.08] rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg h-[88svh] sm:h-auto sm:max-h-[90vh] flex flex-col overflow-hidden">
 
@@ -3722,7 +4185,7 @@ export default function DashboardPage() {
                 <h2 className="text-sm font-semibold mt-0.5 truncate">{shareProject.name}</h2>
               </div>
               <button
-                onClick={() => setShareProject(null)}
+                onClick={() => { setShareProject(null); setSocialPosted(false); setSocialPosting(false); }}
                 className="w-8 h-8 flex items-center justify-center rounded-lg text-white/40 hover:text-white hover:bg-white/[0.06] transition-colors flex-shrink-0"
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -3852,7 +4315,7 @@ export default function DashboardPage() {
                 {/* Section 3 — Share buttons */}
                 <div className="px-5 py-4">
                   <p className="text-xs text-violet-400 uppercase tracking-widest font-medium mb-3">Share to</p>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-3 mb-4">
                     {SHARE_PLATFORMS.map((p) => (
                       <button
                         key={p.id}
@@ -3866,6 +4329,32 @@ export default function DashboardPage() {
                       </button>
                     ))}
                   </div>
+
+                  {/* Post via Make.com */}
+                  <button
+                    onClick={handlePostToSocial}
+                    disabled={socialPosting || !shareSelectedImages.length || socialPosted}
+                    className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold transition-all ${
+                      socialPosted
+                        ? "bg-green-600/20 border border-green-500/30 text-green-400"
+                        : shareSelectedImages.length && !socialPosting
+                        ? "bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-white shadow-lg shadow-violet-500/20"
+                        : "bg-white/[0.04] text-white/20 cursor-not-allowed"
+                    }`}
+                  >
+                    {socialPosting ? (
+                      <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Posting…</>
+                    ) : socialPosted ? (
+                      <>✓ Posted to {sharePlatform}</>
+                    ) : (
+                      <>🚀 Post to {sharePlatform} via Make</>
+                    )}
+                  </button>
+                  {!socialPosted && (
+                    <p className="text-[10px] text-white/20 text-center mt-2">
+                      Requires Make.com webhook in Settings → Make.com
+                    </p>
+                  )}
                 </div>
 
               </div>
