@@ -2501,7 +2501,8 @@ export default function DashboardPage() {
                       setProductGenerating(true)
                       setProductResults([])
                       try {
-                        const res = await fetch("/api/generate-product", {
+                        const endpoint = dripCategory === "jewellery" ? "/api/generate-jewellery" : "/api/generate-product";
+                        const res = await fetch(endpoint, {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
                           body: JSON.stringify({
@@ -2509,6 +2510,7 @@ export default function DashboardPage() {
                             prompt: productPrompt,
                             numImages,
                             category: dripCategory,
+                            scene: productScene,
                           }),
                         })
                         const data = await res.json()
