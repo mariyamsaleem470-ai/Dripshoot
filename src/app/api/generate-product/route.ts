@@ -1,7 +1,31 @@
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { v2 as cloudinary } from "cloudinary";
 
 export const runtime = "nodejs";
+
+cloudinary.config({
+  cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+async function toPublicUrl(imageUrl: string): Promise<string> {
+  // Already a public URL
+  if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
+    return imageUrl;
+  }
+
+  // Local path — upload to Cloudinary
+  const localPath = imageUrl.startsWith("/") ? imageUrl : `/${imageUrl}`;
+  const fullUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "https://dripshoots.com"}${localPath}`;
+
+  const uploaded = await cloudinary.uploader.upload(fullUrl, {
+    folder: "dripshoots/product-inputs",
+  });
+
+  return uploaded.secure_url;
+}
 
 export async function POST(req: Request) {
   const { userId } = await auth();
@@ -23,10 +47,12 @@ export async function POST(req: Request) {
   const token = process.env.REPLICATE_API_TOKEN;
   if (!token) return Response.json({ error: "Replicate not configured" }, { status: 500 });
 
-  const results: string[] = [];
-
   try {
-    // Generate numImages one by one (bria model)
+    // Convert local path to public Cloudinary URL
+    const publicImageUrl = await toPublicUrl(imageUrl);
+
+    const results: string[] = [];
+
     for (let i = 0; i < (numImages ?? 1); i++) {
       const res = await fetch(
         "https://api.replicate.com/v1/models/bria/generate-background/predictions",
@@ -41,7 +67,7 @@ export async function POST(req: Request) {
             input: {
               fast: true,
               sync: true,
-              image: imageUrl,
+              image: publicImageUrl,
               bg_prompt: prompt,
               force_rmbg: true,
               num_results: 1,
@@ -61,7 +87,6 @@ export async function POST(req: Request) {
         continue;
       }
 
-      // Output can be array or single URL
       const output = data.output;
       if (Array.isArray(output) && output.length > 0) {
         results.push(output[0]);
@@ -78,19 +103,6 @@ export async function POST(req: Request) {
     await prisma.user.update({
       where: { clerkId: userId },
       data: { credits: { decrement: results.length } },
-    });
-
-    // Save to project DB (optional — save as generated images)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (prisma.generatedImage.createMany as any)({
-      data: results.map((url) => ({
-        userId: user.id,
-        imageUrl: url,
-        prompt: prompt,
-        category: category ?? "product",
-      })),
-    }).catch(() => {
-      // If generatedImage model doesn't have category field yet, skip silently
     });
 
     return Response.json({ results });
