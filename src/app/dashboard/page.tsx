@@ -229,6 +229,8 @@ const STEP_TITLES: Record<number, string> = {
   // Product photography steps (crockery/jewellery)
   20: "Choose a Scene",
   21: "Customize Prompt",
+  22: "Jewellery Type",
+  23: "How to Show",
 };
 
 const CROCKERY_SCENES: { id: string; label: string; emoji: string; prompt: string }[] = [
@@ -242,18 +244,64 @@ const CROCKERY_SCENES: { id: string; label: string; emoji: string; prompt: strin
   { id: "aerial",          label: "Aerial Flat Lay",      emoji: "📸", prompt: "aerial flat lay on a textured linen surface with natural props, top-down view, lifestyle photography, photorealistic" },
 ];
 
-const JEWELLERY_SCENES: { id: string; label: string; emoji: string; prompt: string; gender: "ladies" | "gents" | "both" }[] = [
-  // Ladies
-  { id: "ladies-velvet",    label: "Velvet Display",      emoji: "💜", prompt: "on a luxurious dark purple velvet jewellery display, soft spotlight lighting, high-end retail photography, photorealistic", gender: "ladies" },
-  { id: "ladies-hand",      label: "Ladies Hand",         emoji: "💍", prompt: "worn on an elegant female hand with soft skin, natural lighting, close-up macro photography, photorealistic", gender: "ladies" },
-  { id: "ladies-neck",      label: "Ladies Neck",         emoji: "📿", prompt: "worn around a graceful female neck, soft studio lighting, fashion editorial photography, photorealistic", gender: "ladies" },
-  { id: "ladies-marble",    label: "Marble & Roses",      emoji: "🌹", prompt: "on white marble surface with pink rose petals, soft feminine lighting, luxury jewellery photography, photorealistic", gender: "ladies" },
-  // Gents
-  { id: "gents-hand",       label: "Gents Hand",          emoji: "🤵", prompt: "worn on a strong male hand, dark background with dramatic lighting, luxury masculine photography, photorealistic", gender: "gents" },
-  { id: "gents-neck",       label: "Gents Neck",          emoji: "⛓️", prompt: "worn around a male neck, dark moody studio lighting, high-end fashion photography, photorealistic", gender: "gents" },
-  { id: "gents-wood",       label: "Dark Wood Display",   emoji: "🪵", prompt: "on a dark polished wood surface with spot lighting, masculine luxury retail photography, photorealistic", gender: "gents" },
-  { id: "gents-watch-flat", label: "Flat Lay Dark",       emoji: "🖤", prompt: "flat lay on dark slate surface with dramatic lighting, luxury mens accessories photography, photorealistic", gender: "gents" },
-];
+// Jewellery types
+const LADIES_JEWELLERY_TYPES = [
+  { id: "necklace",         label: "Necklace",              emoji: "📿" },
+  { id: "earrings",         label: "Earrings / Jhumky",     emoji: "✨" },
+  { id: "necklace-set",     label: "Necklace & Earring Set", emoji: "💎" },
+  { id: "nose-pin",         label: "Nose Pin",              emoji: "💫" },
+  { id: "ring",             label: "Ring",                  emoji: "💍" },
+  { id: "bracelet",         label: "Bracelet / Bangle",     emoji: "📿" },
+  { id: "maang-tikka",      label: "Maang Tikka",           emoji: "👑" },
+  { id: "anklet",           label: "Anklet / Payal",        emoji: "✨" },
+  { id: "hair-pin",         label: "Hair Pin / Jhoomar",    emoji: "🌸" },
+  { id: "full-set",         label: "Full Bridal Set",       emoji: "👰" },
+]
+
+const GENTS_JEWELLERY_TYPES = [
+  { id: "ring",             label: "Ring",                  emoji: "💍" },
+  { id: "chain",            label: "Chain / Necklace",      emoji: "⛓️" },
+  { id: "bracelet",         label: "Bracelet",              emoji: "📿" },
+  { id: "watch",            label: "Watch",                 emoji: "⌚" },
+  { id: "cufflinks",        label: "Cufflinks",             emoji: "👔" },
+  { id: "pendant",          label: "Pendant",               emoji: "🔮" },
+  { id: "earring",          label: "Earring / Stud",        emoji: "✨" },
+]
+
+// On model scenes — Ladies
+const LADIES_ON_MODEL_SCENES: { id: string; label: string; emoji: string; prompt: string; types: string[] }[] = [
+  { id: "l-studio-warm",    label: "Studio Warm",     emoji: "🤍", types: ["necklace","necklace-set","earrings","full-set","maang-tikka"],   prompt: "elegant South Asian female model wearing this jewelry, warm studio lighting, luxury fashion photography, photorealistic" },
+  { id: "l-bridal",         label: "Bridal Look",     emoji: "👰", types: ["necklace","necklace-set","full-set","maang-tikka"],              prompt: "beautiful South Asian bride wearing this jewelry, bridal makeup, red and gold background, luxury bridal photography, photorealistic" },
+  { id: "l-editorial",      label: "Editorial Dark",  emoji: "🖤", types: ["necklace","earrings","necklace-set","bracelet","ring"],          prompt: "South Asian female model wearing this jewelry, dark moody editorial photography, dramatic lighting, photorealistic" },
+  { id: "l-casual",         label: "Casual Chic",     emoji: "🌸", types: ["earrings","nose-pin","ring","bracelet","hair-pin","anklet"],     prompt: "young South Asian woman wearing this jewelry, casual chic styling, natural daylight, lifestyle photography, photorealistic" },
+  { id: "l-close-neck",     label: "Close-up Neck",   emoji: "📿", types: ["necklace","necklace-set"],                                      prompt: "close-up of South Asian female neck wearing this necklace, soft skin, luxury studio lighting, macro fashion photography, photorealistic" },
+  { id: "l-close-ear",      label: "Close-up Ear",    emoji: "👂", types: ["earrings","necklace-set"],                                      prompt: "close-up of South Asian female ear wearing these earrings, soft natural lighting, macro jewellery photography, photorealistic" },
+  { id: "l-close-hand",     label: "Hand Close-up",   emoji: "🤲", types: ["ring","bracelet","anklet"],                                     prompt: "close-up of elegant South Asian female hand wearing this jewelry, soft skin, natural lighting, macro jewellery photography, photorealistic" },
+  { id: "l-close-nose",     label: "Nose Close-up",   emoji: "👃", types: ["nose-pin"],                                                     prompt: "close-up of South Asian female nose with this nose pin, natural lighting, macro jewellery photography, photorealistic" },
+]
+
+// On model scenes — Gents
+const GENTS_ON_MODEL_SCENES: { id: string; label: string; emoji: string; prompt: string; types: string[] }[] = [
+  { id: "g-studio-dark",    label: "Studio Dark",     emoji: "🖤", types: ["chain","ring","bracelet","pendant","earring"],                  prompt: "strong male model wearing this jewelry, dark moody studio lighting, luxury masculine photography, photorealistic" },
+  { id: "g-editorial",      label: "Editorial",       emoji: "📸", types: ["chain","ring","bracelet","cufflinks","pendant"],               prompt: "male model wearing this jewelry, editorial fashion photography, dramatic lighting, photorealistic" },
+  { id: "g-close-hand",     label: "Hand Close-up",   emoji: "✋", types: ["ring","bracelet","watch"],                                     prompt: "close-up of strong male hand wearing this jewelry, dark background, luxury accessory photography, photorealistic" },
+  { id: "g-close-neck",     label: "Neck Close-up",   emoji: "⛓️", types: ["chain","pendant"],                                            prompt: "close-up of male neck wearing this chain, dark moody background, luxury fashion photography, photorealistic" },
+  { id: "g-suit",           label: "Formal Suit",     emoji: "🤵", types: ["cufflinks","ring","watch"],                                    prompt: "male model in formal suit wearing this jewelry, elegant office setting, professional photography, photorealistic" },
+]
+
+// Without model display scenes
+const DISPLAY_SCENES: { id: string; label: string; emoji: string; prompt: string }[] = [
+  { id: "d-velvet-dark",    label: "Dark Velvet",     emoji: "🖤", prompt: "on luxurious dark black velvet jewelry display surface, soft golden spotlight, high-end retail photography, photorealistic" },
+  { id: "d-velvet-purple",  label: "Purple Velvet",   emoji: "💜", prompt: "on luxurious dark purple velvet jewelry display, soft spotlight lighting, high-end retail photography, photorealistic" },
+  { id: "d-marble-white",   label: "White Marble",    emoji: "🤍", prompt: "on elegant white marble surface with soft natural lighting, luxury jewelry photography, photorealistic" },
+  { id: "d-marble-roses",   label: "Marble & Roses",  emoji: "🌹", prompt: "on white marble surface with pink rose petals scattered around, soft feminine lighting, luxury jewelry photography, photorealistic" },
+  { id: "d-wooden",         label: "Dark Wood",       emoji: "🪵", prompt: "on dark polished wood surface with spot lighting, masculine luxury retail photography, photorealistic" },
+  { id: "d-glass",          label: "Glass Display",   emoji: "💎", prompt: "on transparent glass jewelry display stand, soft diffused lighting, premium retail photography, photorealistic" },
+  { id: "d-silk",           label: "Silk Fabric",     emoji: "🌸", prompt: "on smooth ivory silk fabric with soft natural light, luxury jewelry presentation photography, photorealistic" },
+  { id: "d-flatlay-dark",   label: "Flat Lay Dark",   emoji: "📸", prompt: "elegant flat lay on dark slate surface, dramatic side lighting, luxury jewelry editorial photography, photorealistic" },
+  { id: "d-flatlay-light",  label: "Flat Lay Light",  emoji: "☀️", prompt: "elegant flat lay on white linen surface with natural window light, minimalist jewelry photography, photorealistic" },
+  { id: "d-box",            label: "Jewelry Box",     emoji: "🎁", prompt: "placed inside an elegant open jewelry gift box, luxury packaging, soft studio lighting, photorealistic" },
+]
 
 const NAV_ITEMS: { id: NavItem; label: string; icon: React.ReactNode }[] = [
   { id: "upload", label: "Upload", icon: <UploadIcon /> },
@@ -531,6 +579,9 @@ export default function DashboardPage() {
   const [wizardStep, setWizardStep] = useState(1);
   const [dripCategory, setDripCategory] = useState<DripCategory | null>(null);
   const [productScene, setProductScene] = useState<string | null>(null)
+  const [jewelleryGender, setJewelleryGender] = useState<"ladies" | "gents" | null>(null)
+  const [jewelleryType, setJewelleryType] = useState<string | null>(null)
+  const [jewelleryDisplayMode, setJewelleryDisplayMode] = useState<"on-model" | "display" | null>(null)
   const [productPrompt, setProductPrompt] = useState("")
   const [productGenerating, setProductGenerating] = useState(false)
   const [productResults, setProductResults] = useState<string[]>([])
@@ -1289,6 +1340,9 @@ export default function DashboardPage() {
     setWizardStep(1);
     setDripCategory(null);
     setProductScene(null);
+    setJewelleryGender(null);
+    setJewelleryType(null);
+    setJewelleryDisplayMode(null);
     setProductPrompt("");
     setProductGenerating(false);
     setProductResults([]);
@@ -1725,7 +1779,9 @@ export default function DashboardPage() {
     showToast("Images downloaded successfully!", "success");
   };
 
-  const stepSequence = (dripCategory === "crockery" || dripCategory === "jewellery")
+  const stepSequence = dripCategory === "jewellery"
+    ? [1, 20, 22, 23, 21]
+    : dripCategory === "crockery"
     ? [1, 20, 21]
     : [1, 2, 4, 5, 3, 6, 7, 8, 9, 11];
 
@@ -1733,10 +1789,16 @@ export default function DashboardPage() {
   const displayStep = Math.max(1, stepSequence.indexOf(wizardStep) + 1);
 
   const handleNext = () => {
-    // Product photography flow (crockery/jewellery)
-    if (dripCategory === "crockery" || dripCategory === "jewellery") {
+    if (dripCategory === "crockery") {
       if (wizardStep === 1) { setWizardStep(20); return; }
       if (wizardStep === 20) { setWizardStep(21); return; }
+      return;
+    }
+    if (dripCategory === "jewellery") {
+      if (wizardStep === 1)  { setWizardStep(20); return; }
+      if (wizardStep === 20) { setWizardStep(22); return; }
+      if (wizardStep === 22) { setWizardStep(23); return; }
+      if (wizardStep === 23) { setWizardStep(21); return; }
       return;
     }
     if (wizardStep === 1)      setWizardStep(2);
@@ -1751,10 +1813,16 @@ export default function DashboardPage() {
   };
 
   const handleBack = () => {
-    // Product photography flow
-    if (dripCategory === "crockery" || dripCategory === "jewellery") {
+    if (dripCategory === "crockery") {
       if (wizardStep === 20) { setWizardStep(1); return; }
       if (wizardStep === 21) { setWizardStep(20); return; }
+      return;
+    }
+    if (dripCategory === "jewellery") {
+      if (wizardStep === 20) { setWizardStep(1); return; }
+      if (wizardStep === 22) { setWizardStep(20); return; }
+      if (wizardStep === 23) { setWizardStep(22); return; }
+      if (wizardStep === 21) { setWizardStep(23); return; }
       return;
     }
     if (wizardStep === 2)       setWizardStep(1);
@@ -1777,7 +1845,9 @@ export default function DashboardPage() {
       case 3: return !!clothingStyle;
       case 6: return !!background;
       case 7: return !!occasion;
-      case 20: return !!productScene;
+      case 20: return dripCategory === "jewellery" ? !!jewelleryGender : !!productScene;
+      case 22: return !!jewelleryType;
+      case 23: return !!jewelleryDisplayMode;
       case 21: return true; // prompt is optional
       default: return true;
     }
@@ -2361,57 +2431,58 @@ export default function DashboardPage() {
                 </div>
               )}
 
-              {/* ── Product Step 20: Scene Selection ── */}
+              {/* ── Step 20: Gender (Jewellery) OR Scene (Crockery) ── */}
               {wizardStep === 20 && (
-                <div className="space-y-4">
+                <>
                   {dripCategory === "jewellery" ? (
-                    <>
-                      {/* Ladies section */}
-                      <div>
-                        <p className="text-xs text-white/40 uppercase tracking-widest font-medium mb-3">👩 Ladies Jewellery</p>
-                        <div className="grid grid-cols-2 gap-3">
-                          {JEWELLERY_SCENES.filter(s => s.gender === "ladies").map((scene) => (
-                            <button
-                              key={scene.id}
-                              onClick={() => { setProductScene(scene.id); setProductPrompt(scene.prompt); }}
-                              className={`flex flex-col items-start gap-2 p-4 rounded-2xl border transition-all text-left ${
-                                productScene === scene.id
-                                  ? "border-pink-500 bg-pink-500/10"
-                                  : "border-white/[0.07] bg-white/[0.03] hover:border-pink-500/40 hover:bg-white/[0.05]"
-                              }`}
-                            >
-                              <span className="text-2xl">{scene.emoji}</span>
-                              <span className={`text-xs font-semibold leading-tight ${
-                                productScene === scene.id ? "text-pink-300" : "text-white/70"
-                              }`}>{scene.label}</span>
-                            </button>
-                          ))}
-                        </div>
+                    <div className="space-y-4">
+                      <div className="mb-6">
+                        <p className="text-xs text-white/40 uppercase tracking-widest font-medium mb-1">Step 1 of 4</p>
+                        <h2 className="text-lg font-bold text-white">Who is this jewellery for?</h2>
                       </div>
-                      {/* Gents section */}
-                      <div>
-                        <p className="text-xs text-white/40 uppercase tracking-widest font-medium mb-3">👨 Gents Accessories</p>
-                        <div className="grid grid-cols-2 gap-3">
-                          {JEWELLERY_SCENES.filter(s => s.gender === "gents").map((scene) => (
-                            <button
-                              key={scene.id}
-                              onClick={() => { setProductScene(scene.id); setProductPrompt(scene.prompt); }}
-                              className={`flex flex-col items-start gap-2 p-4 rounded-2xl border transition-all text-left ${
-                                productScene === scene.id
-                                  ? "border-blue-500 bg-blue-500/10"
-                                  : "border-white/[0.07] bg-white/[0.03] hover:border-blue-500/40 hover:bg-white/[0.05]"
-                              }`}
-                            >
-                              <span className="text-2xl">{scene.emoji}</span>
-                              <span className={`text-xs font-semibold leading-tight ${
-                                productScene === scene.id ? "text-blue-300" : "text-white/70"
-                              }`}>{scene.label}</span>
-                            </button>
-                          ))}
-                        </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <button
+                          onClick={() => setJewelleryGender("ladies")}
+                          className={`flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border-2 transition-all ${
+                            jewelleryGender === "ladies"
+                              ? "border-pink-500 bg-pink-500/10"
+                              : "border-white/[0.07] bg-white/[0.03] hover:border-pink-500/40"
+                          }`}
+                        >
+                          <span className="text-4xl">👩</span>
+                          <div className="text-center">
+                            <p className={`font-semibold text-base ${jewelleryGender === "ladies" ? "text-pink-300" : "text-white"}`}>Ladies</p>
+                            <p className="text-white/30 text-xs mt-1">Women&apos;s jewellery</p>
+                          </div>
+                          {jewelleryGender === "ladies" && (
+                            <div className="w-5 h-5 rounded-full bg-pink-500 flex items-center justify-center">
+                              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                            </div>
+                          )}
+                        </button>
+                        <button
+                          onClick={() => setJewelleryGender("gents")}
+                          className={`flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border-2 transition-all ${
+                            jewelleryGender === "gents"
+                              ? "border-blue-500 bg-blue-500/10"
+                              : "border-white/[0.07] bg-white/[0.03] hover:border-blue-500/40"
+                          }`}
+                        >
+                          <span className="text-4xl">👨</span>
+                          <div className="text-center">
+                            <p className={`font-semibold text-base ${jewelleryGender === "gents" ? "text-blue-300" : "text-white"}`}>Gents</p>
+                            <p className="text-white/30 text-xs mt-1">Men&apos;s accessories</p>
+                          </div>
+                          {jewelleryGender === "gents" && (
+                            <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center">
+                              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                            </div>
+                          )}
+                        </button>
                       </div>
-                    </>
+                    </div>
                   ) : (
+                    /* Crockery scenes — existing grid */
                     <div className="grid grid-cols-2 gap-3">
                       {CROCKERY_SCENES.map((scene) => (
                         <button
@@ -2424,13 +2495,103 @@ export default function DashboardPage() {
                           }`}
                         >
                           <span className="text-2xl">{scene.emoji}</span>
-                          <span className={`text-xs font-semibold leading-tight ${
-                            productScene === scene.id ? "text-amber-300" : "text-white/70"
-                          }`}>{scene.label}</span>
+                          <span className={`text-xs font-semibold leading-tight ${productScene === scene.id ? "text-amber-300" : "text-white/70"}`}>{scene.label}</span>
                         </button>
                       ))}
                     </div>
                   )}
+                </>
+              )}
+
+              {/* ── Step 22: Jewellery Type ── */}
+              {wizardStep === 22 && (
+                <div className="space-y-4">
+                  <div className="mb-4">
+                    <p className="text-xs text-white/40 uppercase tracking-widest font-medium mb-1">Step 2 of 4</p>
+                    <h2 className="text-lg font-bold text-white">What type of jewellery?</h2>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {(jewelleryGender === "ladies" ? LADIES_JEWELLERY_TYPES : GENTS_JEWELLERY_TYPES).map((type) => (
+                      <button
+                        key={type.id}
+                        onClick={() => { setJewelleryType(type.id); setJewelleryDisplayMode(null); setProductScene(null); }}
+                        className={`flex items-center gap-3 p-4 rounded-2xl border transition-all text-left ${
+                          jewelleryType === type.id
+                            ? jewelleryGender === "ladies"
+                              ? "border-pink-500 bg-pink-500/10"
+                              : "border-blue-500 bg-blue-500/10"
+                            : "border-white/[0.07] bg-white/[0.03] hover:border-white/20"
+                        }`}
+                      >
+                        <span className="text-2xl flex-shrink-0">{type.emoji}</span>
+                        <span className={`text-sm font-semibold leading-tight ${
+                          jewelleryType === type.id
+                            ? jewelleryGender === "ladies" ? "text-pink-300" : "text-blue-300"
+                            : "text-white/70"
+                        }`}>{type.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* ── Step 23: Display Mode ── */}
+              {wizardStep === 23 && (
+                <div className="space-y-4">
+                  <div className="mb-4">
+                    <p className="text-xs text-white/40 uppercase tracking-widest font-medium mb-1">Step 3 of 4</p>
+                    <h2 className="text-lg font-bold text-white">How would you like it shown?</h2>
+                  </div>
+
+                  <button
+                    onClick={() => { setJewelleryDisplayMode("on-model"); setProductScene(null); }}
+                    className={`w-full flex items-center gap-4 p-5 rounded-2xl border-2 transition-all text-left ${
+                      jewelleryDisplayMode === "on-model"
+                        ? jewelleryGender === "ladies" ? "border-pink-500 bg-pink-500/10" : "border-blue-500 bg-blue-500/10"
+                        : "border-white/[0.07] bg-white/[0.03] hover:border-white/20"
+                    }`}
+                  >
+                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0 ${
+                      jewelleryDisplayMode === "on-model"
+                        ? jewelleryGender === "ladies" ? "bg-pink-500/20" : "bg-blue-500/20"
+                        : "bg-white/5"
+                    }`}>
+                      {jewelleryGender === "ladies" ? "👩" : "👨"}
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-white font-semibold mb-1">Shown on Model</p>
+                      <p className="text-white/40 text-sm">AI generates a model wearing your jewellery — realistic photoshoot look</p>
+                    </div>
+                    {jewelleryDisplayMode === "on-model" && (
+                      <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${jewelleryGender === "ladies" ? "bg-pink-500" : "bg-blue-500"}`}>
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      </div>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={() => { setJewelleryDisplayMode("display"); setProductScene(null); }}
+                    className={`w-full flex items-center gap-4 p-5 rounded-2xl border-2 transition-all text-left ${
+                      jewelleryDisplayMode === "display"
+                        ? "border-amber-500 bg-amber-500/10"
+                        : "border-white/[0.07] bg-white/[0.03] hover:border-white/20"
+                    }`}
+                  >
+                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0 ${
+                      jewelleryDisplayMode === "display" ? "bg-amber-500/20" : "bg-white/5"
+                    }`}>
+                      💎
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-white font-semibold mb-1">Elegant Display</p>
+                      <p className="text-white/40 text-sm">Jewellery shown on velvet, marble, silk — luxury product photography without model</p>
+                    </div>
+                    {jewelleryDisplayMode === "display" && (
+                      <div className="w-5 h-5 rounded-full bg-amber-500 flex items-center justify-center flex-shrink-0">
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      </div>
+                    )}
+                  </button>
                 </div>
               )}
 
@@ -2440,9 +2601,9 @@ export default function DashboardPage() {
                   {/* Selected scene preview */}
                   {productScene && (
                     <div className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/20 flex items-center gap-3">
-                      <span className="text-xl">{([...CROCKERY_SCENES, ...JEWELLERY_SCENES].find(s => s.id === productScene))?.emoji}</span>
+                      <span className="text-xl">{([...CROCKERY_SCENES, ...DISPLAY_SCENES, ...LADIES_ON_MODEL_SCENES, ...GENTS_ON_MODEL_SCENES].find(s => s.id === productScene))?.emoji}</span>
                       <div>
-                        <p className="text-amber-300 text-xs font-medium">{([...CROCKERY_SCENES, ...JEWELLERY_SCENES].find(s => s.id === productScene))?.label}</p>
+                        <p className="text-amber-300 text-xs font-medium">{([...CROCKERY_SCENES, ...DISPLAY_SCENES, ...LADIES_ON_MODEL_SCENES, ...GENTS_ON_MODEL_SCENES].find(s => s.id === productScene))?.label}</p>
                         <p className="text-white/30 text-[10px] mt-0.5">Scene selected</p>
                       </div>
                       <button
@@ -2454,12 +2615,64 @@ export default function DashboardPage() {
                     </div>
                   )}
 
+                  {/* Jewellery scene selector in step 21 */}
+                  {dripCategory === "jewellery" && (
+                    <div className="space-y-3">
+                      <p className="text-xs text-white/40 uppercase tracking-widest font-medium">
+                        Step 4 of 4 — Choose Scene
+                      </p>
+                      {jewelleryDisplayMode === "on-model" ? (
+                        <div className="grid grid-cols-2 gap-2">
+                          {(jewelleryGender === "ladies" ? LADIES_ON_MODEL_SCENES : GENTS_ON_MODEL_SCENES)
+                            .filter(s => s.types.includes(jewelleryType ?? ""))
+                            .map(scene => (
+                              <button
+                                key={scene.id}
+                                onClick={() => { setProductScene(scene.id); setProductPrompt(scene.prompt); }}
+                                className={`flex items-center gap-2 p-3 rounded-xl border transition-all text-left ${
+                                  productScene === scene.id
+                                    ? jewelleryGender === "ladies"
+                                      ? "border-pink-500 bg-pink-500/10"
+                                      : "border-blue-500 bg-blue-500/10"
+                                    : "border-white/[0.07] bg-white/[0.03] hover:border-white/20"
+                                }`}
+                              >
+                                <span className="text-xl">{scene.emoji}</span>
+                                <span className={`text-xs font-semibold leading-tight ${
+                                  productScene === scene.id
+                                    ? jewelleryGender === "ladies" ? "text-pink-300" : "text-blue-300"
+                                    : "text-white/60"
+                                }`}>{scene.label}</span>
+                              </button>
+                            ))}
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-2">
+                          {DISPLAY_SCENES.map(scene => (
+                            <button
+                              key={scene.id}
+                              onClick={() => { setProductScene(scene.id); setProductPrompt(scene.prompt); }}
+                              className={`flex items-center gap-2 p-3 rounded-xl border transition-all text-left ${
+                                productScene === scene.id
+                                  ? "border-amber-500 bg-amber-500/10"
+                                  : "border-white/[0.07] bg-white/[0.03] hover:border-amber-500/30"
+                              }`}
+                            >
+                              <span className="text-xl">{scene.emoji}</span>
+                              <span className={`text-xs font-semibold leading-tight ${productScene === scene.id ? "text-amber-300" : "text-white/60"}`}>{scene.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* Prompt editor */}
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <label className="text-xs text-white/50 uppercase tracking-widest font-medium">AI Prompt</label>
                       <button
-                        onClick={() => setProductPrompt([...CROCKERY_SCENES, ...JEWELLERY_SCENES].find(s => s.id === productScene)?.prompt ?? "")}
+                        onClick={() => setProductPrompt(CROCKERY_SCENES.find(s => s.id === productScene)?.prompt ?? productPrompt)}
                         className="text-[10px] text-amber-400 hover:text-amber-300 transition-colors"
                       >
                         Reset
@@ -2511,6 +2724,9 @@ export default function DashboardPage() {
                             numImages,
                             category: dripCategory,
                             scene: productScene,
+                            jewelleryGender,
+                            jewelleryType,
+                            jewelleryDisplayMode,
                           }),
                         })
                         const data = await res.json()
@@ -2575,7 +2791,7 @@ export default function DashboardPage() {
                     Back
                   </button>
                 )}
-                {(wizardStep < 11 || wizardStep === 20) && wizardStep !== 21 ? (
+                {(wizardStep < 11 || wizardStep === 20 || wizardStep === 22 || wizardStep === 23) && wizardStep !== 21 ? (
                   <button
                     disabled={!isStepValid}
                     onClick={handleNext}
