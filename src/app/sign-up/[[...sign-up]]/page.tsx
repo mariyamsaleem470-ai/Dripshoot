@@ -134,7 +134,7 @@ export default function SignUpPage() {
         {/* Right-side subtle separator line */}
         <div className="hidden lg:block absolute left-0 top-0 bottom-0 w-px bg-white/[0.05]" />
 
-        <div className="relative z-10 w-full max-w-[400px]">
+        <div className="relative z-10 w-full max-w-[380px] mx-auto overflow-x-hidden">
 
           {/* Mobile logo */}
           <div className="flex items-center gap-2 mb-8 lg:hidden">
@@ -171,8 +171,9 @@ export default function SignUpPage() {
                   fontFamily: "inherit",
                 },
                 elements: {
-                  rootBox: "w-full",
-                  card: "bg-transparent shadow-none border-none p-0 w-full",
+                  rootBox: "!w-full !max-w-[380px] !mx-auto",
+                  card: "!bg-[#13131a] !border !border-white/10 !shadow-2xl !w-full !box-border bg-transparent shadow-none border-none p-0",
+                  cardBox: "!w-full !max-w-full",
                   headerTitle: "text-white text-2xl font-bold",
                   headerSubtitle: "text-zinc-400 text-sm",
                   socialButtonsBlockButton: "!bg-white !text-gray-800 !border-0 hover:!bg-gray-100 !transition-colors !rounded-xl !font-medium",
@@ -181,17 +182,18 @@ export default function SignUpPage() {
                   dividerLine: "!bg-white/20",
                   dividerText: "!text-zinc-400 !text-xs",
                   formFieldLabel: "!text-zinc-200 !text-sm !font-medium",
-                  formFieldInput: "!bg-white/10 !border !border-white/20 !text-white placeholder:!text-zinc-500 !rounded-xl",
+                  formFieldInput: "!bg-white/10 !border !border-white/20 !text-white placeholder:!text-zinc-500 !rounded-xl !w-full !box-border",
                   formButtonPrimary: "!bg-violet-600 hover:!bg-violet-700 !text-white !font-semibold !rounded-xl",
                   footerActionLink: "!text-violet-400 hover:!text-violet-300 !font-medium",
                   footerActionText: "!text-zinc-400",
                   formFieldErrorText: "!text-red-400 !text-xs",
                   alertText: "!text-red-400",
-                  identityPreviewText: "!text-white",
+                  identityPreview: "!flex-wrap !break-all",
+                  identityPreviewText: "!break-all !text-sm",
                   identityPreviewEditButton: "!text-violet-400",
-                  otpCodeFieldInput: "!bg-white/10 !border !border-white/20 !text-white !rounded-xl !text-center !text-2xl !font-bold",
+                  otpCodeFieldInput: "!bg-white/10 !border !border-white/20 !text-white !rounded-xl !text-center !text-lg !font-bold !w-10 !h-12 sm:!w-12 sm:!h-14 sm:!text-2xl",
                   otpCodeField: "gap-2",
-                  otpCodeFieldInputs: "gap-2",
+                  otpCodeFieldInputs: "!gap-1.5 !flex-wrap !justify-center",
                   verificationLinkStatusText: "!text-white",
                   verificationLinkStatusIcon: "!text-violet-400",
                   formResendCodeLink: "!text-violet-400 hover:!text-violet-300",
