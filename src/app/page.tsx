@@ -48,6 +48,7 @@ export default function Home() {
           {/* Center links */}
           <div className="hidden md:flex items-center gap-8 text-sm">
             <Link href="/how-it-works" className="text-white/70 hover:text-white transition-colors text-sm font-medium">How It Works</Link>
+            <Link href="/portfolio" className="text-white/70 hover:text-white transition-colors text-sm font-medium">Portfolio</Link>
             <button onClick={() => document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" })} className="text-white/70 hover:text-white transition-colors text-sm font-medium">Pricing</button>
             <Link href="/contact" className="text-white/70 hover:text-white transition-colors text-sm font-medium">Contact</Link>
           </div>
@@ -82,6 +83,7 @@ export default function Home() {
               style={{ backgroundColor: "rgba(8,8,8,0.98)", borderBottom: "1px solid rgba(255,255,255,0.07)" }}
             >
               <Link href="/how-it-works" onClick={() => setShowMenu(false)} className="py-2 text-left text-white/70 hover:text-white transition-colors text-sm font-medium">How It Works</Link>
+              <Link href="/portfolio" onClick={() => setShowMenu(false)} className="py-2 text-left text-white/70 hover:text-white transition-colors text-sm font-medium">Portfolio</Link>
               <button onClick={() => { document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" }); setShowMenu(false); }} className="text-left py-2" style={{ color: "rgba(248,248,248,0.6)" }}>Pricing</button>
               <Link href="/contact" onClick={() => setShowMenu(false)} className="py-2 text-left text-white/70 hover:text-white transition-colors text-sm font-medium">Contact</Link>
               <a href="/sign-in" className="py-2" style={{ color: "rgba(248,248,248,0.6)" }}>Sign in</a>
@@ -202,7 +204,7 @@ export default function Home() {
             className="flex flex-wrap justify-center gap-6 text-sm mb-16"
             style={{ color: "rgba(248,248,248,0.3)" }}
           >
-            {["No credit card required", "2 min per product", "15 free images", "Cancel anytime"].map((t) => (
+            {["No credit card required", "2 min per product", "5 free images", "Cancel anytime"].map((t) => (
               <span key={t} className="flex items-center gap-1.5">
                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6l2.5 2.5L10 3" stroke="#a78bfa" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 {t}
@@ -627,111 +629,66 @@ export default function Home() {
             >
               Simple, one-time pricing
             </motion.h2>
-            <p className="mt-4 text-sm" style={{ color: "rgba(248,248,248,0.5)" }}>Pay once. Credits valid for 12 months. No subscriptions, no hidden fees.</p>
+            <p className="mt-4 text-sm" style={{ color: "rgba(248,248,248,0.5)" }}>One simple plan. Use credits for images or video reels.</p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[
-              {
-                name: "Starter",
-                price: "$49",
-                credits: "150 credits",
-                images: "150 images",
-                reels: null,
-                featured: false,
-                badge: null,
-                cta: "Get Starter",
-                features: ["AI model generation", "Brand watermark", "WooCommerce & Shopify", "Custom prompts", "12-month validity"],
-              },
-              {
-                name: "Growth",
-                price: "$99",
-                credits: "300 credits",
-                images: "250 images",
-                reels: "5 video reels",
-                featured: true,
-                badge: "Most Popular",
-                cta: "Get Growth",
-                features: ["Everything in Starter", "Video reels", "Priority generation", "Bulk download"],
-              },
-              {
-                name: "Pro",
-                price: "$199",
-                credits: "750 credits",
-                images: "620 images",
-                reels: "15 video reels",
-                featured: false,
-                badge: null,
-                cta: "Get Pro",
-                features: ["Everything in Growth", "Highest volume", "All resolutions"],
-              },
-              {
-                name: "Reels",
-                price: "$49",
-                credits: "160 credits",
-                images: null,
-                reels: "20 video reels",
-                featured: false,
-                badge: null,
-                cta: "Get Reels",
-                features: ["AI video generation", "Motion prompts", "720p quality", "Brand overlay"],
-              },
-            ].map((plan, i) => (
-              <motion.div
-                key={plan.name}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1, duration: 0.5 }}
-                whileHover={{ y: -4, scale: 1.02 }}
-                className="rounded-2xl p-6 relative flex flex-col"
-                style={{
-                  backgroundColor: plan.featured ? "rgba(124,58,237,0.05)" : "#0f0f0f",
-                  border: plan.featured ? "1px solid rgba(124,58,237,0.4)" : "1px solid rgba(255,255,255,0.07)",
-                }}
-              >
-                {plan.badge && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 text-xs px-3 py-1 rounded-full font-medium bg-violet-600 text-white">
-                    {plan.badge}
-                  </div>
-                )}
-                <div className="mb-5">
-                  <p className="text-sm mb-1" style={{ color: "rgba(248,248,248,0.5)" }}>{plan.name}</p>
-                  <div className="flex items-baseline gap-1 mb-2">
-                    <span className="text-4xl font-black">{plan.price}</span>
-                  </div>
-                  <p className="text-xs" style={{ color: "rgba(248,248,248,0.4)" }}>{plan.credits}</p>
-                  {plan.images && <p className="text-xs mt-0.5" style={{ color: "rgba(248,248,248,0.4)" }}>{plan.images}</p>}
-                  {plan.reels && <p className="text-xs mt-0.5" style={{ color: "rgba(196,181,253,0.7)" }}>{plan.reels}</p>}
+          <div className="flex justify-center">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5 }}
+              whileHover={{ y: -4, scale: 1.02 }}
+              className="rounded-2xl p-6 relative flex flex-col w-full max-w-md"
+              style={{
+                backgroundColor: "rgba(124,58,237,0.05)",
+                border: "1px solid rgba(124,58,237,0.4)",
+              }}
+            >
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 text-xs px-3 py-1 rounded-full font-medium bg-violet-600 text-white">
+                Everything Included
+              </div>
+
+              <div className="mb-5">
+                <p className="text-sm mb-1" style={{ color: "rgba(248,248,248,0.5)" }}>DripShoots Plan</p>
+                <div className="flex items-baseline gap-1 mb-2">
+                  <span className="text-4xl font-black">$100</span>
+                  <span className="text-sm" style={{ color: "rgba(248,248,248,0.4)" }}>/month</span>
                 </div>
+                <p className="text-xs" style={{ color: "rgba(248,248,248,0.4)" }}>400 credits — images &amp; video reels</p>
+              </div>
 
-                <ul className="space-y-2.5 mb-6 flex-1">
-                  {plan.features.map((f) => (
-                    <li key={f} className="flex items-start gap-2 text-xs" style={{ color: "rgba(248,248,248,0.6)" }}>
-                      <svg className="mt-0.5 flex-shrink-0" width="12" height="12" viewBox="0 0 12 12" fill="none">
-                        <path d="M2 6l2.5 2.5L10 3" stroke="#a78bfa" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                      {f}
-                    </li>
-                  ))}
-                </ul>
+              <ul className="space-y-2.5 mb-6 flex-1">
+                {[
+                  "AI model photo generation",
+                  "AI video reel generation",
+                  "Garments, jewellery & crockery",
+                  "Brand watermark",
+                  "WooCommerce & Shopify export",
+                  "Custom AI prompts",
+                  "Priority generation",
+                ].map((f) => (
+                  <li key={f} className="flex items-start gap-2 text-xs" style={{ color: "rgba(248,248,248,0.6)" }}>
+                    <svg className="mt-0.5 flex-shrink-0" width="12" height="12" viewBox="0 0 12 12" fill="none">
+                      <path d="M2 6l2.5 2.5L10 3" stroke="#a78bfa" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    {f}
+                  </li>
+                ))}
+              </ul>
 
-                <a
-                  href="/sign-up"
-                  className="block text-center py-2.5 rounded-xl text-sm font-semibold transition-colors"
-                  style={plan.featured
-                    ? { backgroundColor: "#7c3aed", color: "#f8f8f8" }
-                    : { border: "1px solid rgba(255,255,255,0.12)", color: "rgba(248,248,248,0.7)" }
-                  }
-                >
-                  {plan.cta}
-                </a>
-              </motion.div>
-            ))}
+              <a
+                href="/sign-up"
+                className="block text-center py-2.5 rounded-xl text-sm font-semibold transition-colors"
+                style={{ backgroundColor: "#7c3aed", color: "#f8f8f8" }}
+              >
+                Get Started
+              </a>
+            </motion.div>
           </div>
 
           <p className="text-center text-sm mt-8" style={{ color: "rgba(248,248,248,0.3)" }}>
-            All plans include 15 free images on signup. No credit card required.
+            5 free images on signup. No credit card required.
           </p>
         </div>
       </section>

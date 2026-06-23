@@ -10,7 +10,7 @@ const PLAN_LIMITS: Record<string, number> = {
 };
 
 const PKR_PLAN_LIMITS: Record<string, number> = {
-  free_trial: 15,
+  free_trial: 5,
   starter:    60,
   growth:     200,
   pro:        500,
@@ -71,8 +71,8 @@ export async function PATCH(request: Request) {
       where: { id: userId },
       data: {
         status: "active",
-        credits: 15,
-        creditsLimit: 15,
+        credits: 5,
+        creditsLimit: 5,
         plan: "free_trial",
         approvedAt: new Date(),
         approvedBy: admin,

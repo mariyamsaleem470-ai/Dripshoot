@@ -138,7 +138,7 @@ export default function HowItWorksPage() {
       <section className="py-20 px-6 text-center">
         <div className="max-w-md mx-auto">
           <h2 className="text-2xl md:text-3xl font-black mb-4">Ready to try it?</h2>
-          <p className="text-sm mb-8" style={{ color: 'rgba(248,248,248,0.5)' }}>Start with 15 free images. No credit card needed.</p>
+          <p className="text-sm mb-8" style={{ color: 'rgba(248,248,248,0.5)' }}>Start with 5 free images. No credit card needed.</p>
           <div className="flex flex-wrap items-center justify-center gap-3">
             <Link
               href="/sign-up"
